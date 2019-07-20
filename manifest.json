@@ -1,0 +1,8 @@
+{
+  "domain": "duet3d",
+  "name": "Duet3d",
+  "documentation": "https://www.home-assistant.io/components/duet3d",
+  "requirements": [],
+  "dependencies": [],
+  "codeowners": []
+}
