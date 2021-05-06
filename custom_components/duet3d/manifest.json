@@ -1,8 +1,11 @@
 {
   "domain": "duet3d",
-  "name": "Duet3d",
+  "name": "Duet3D",
   "documentation": "https://www.home-assistant.io/components/duet3d",
   "requirements": [],
   "dependencies": [],
-  "codeowners": []
+  "codeowners": [
+    "@irgusite",
+    "@garethbradley"
+  ]
 }
