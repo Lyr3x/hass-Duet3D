@@ -39,3 +39,22 @@ duet3d:
       - 'Time Elapsed'
       - 'Time Remaining'
 ```
+
+Add the following to your Lovelace dashboard. Remember to update the entity names with those of your own printer (defined by the value of `duet3d-name`)
+```yaml
+- card:
+    cards:
+      - type: glance
+        entities:
+          - entity: sensor.blv_mgn_cube_current_toolbed_temp
+            name: Bed
+          - entity: sensor.blv_mgn_cube_current_tool1_temp
+            name: Tool
+          - entity: sensor.blv_mgn_cube_current_state
+            name: Status
+    type: horizontal-stack
+  conditions:
+    - entity: switch.blv_mgn_cube
+      state: 'on'
+  type: conditional
+```
