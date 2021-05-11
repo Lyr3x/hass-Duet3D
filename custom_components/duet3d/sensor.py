@@ -1,5 +1,5 @@
 """Support for monitoring Duet3D sensors."""
-#TODO: add tool and bed status, need moar sensors!
+# TODO: add tool and bed status, need moar sensors!
 import logging
 
 import requests
@@ -11,75 +11,171 @@ from . import DOMAIN as COMPONENT_DOMAIN, SENSOR_TYPES
 
 _LOGGER = logging.getLogger(__name__)
 
-NOTIFICATION_ID = 'duet3d_notification'
-NOTIFICATION_TITLE = 'Duet3d sensor setup error'
+NOTIFICATION_ID = "duet3d_notification"
+NOTIFICATION_TITLE = "Duet3d sensor setup error"
 
 
 def setup_platform(hass, config, add_entities, discovery_info=None):
-    """Set up the available OctoPrint sensors."""
+    """Set up the available Duet3D sensors."""
     if discovery_info is None:
         return
 
-    name = discovery_info['name']
-    base_url = discovery_info['base_url']
-    monitored_conditions = discovery_info['sensors']
+    name = discovery_info["name"]
+    base_url = discovery_info["base_url"]
+    monitored_conditions = discovery_info["sensors"]
     duet3d_api = hass.data[COMPONENT_DOMAIN][base_url]
     tools = duet3d_api.get_tools()
 
     if "Temperatures" in monitored_conditions:
         if not tools:
             hass.components.persistent_notification.create(
-                'Your printer appears to be offline.<br />'
-                'If you do not want to have your printer on <br />'
-                ' at all times, and you would like to monitor <br /> '
-                'temperatures, please add <br />'
-                'bed and/or number&#95of&#95tools to your config <br />'
-                'and restart.',
+                "Your printer appears to be offline.<br />"
+                "If you do not want to have your printer on <br />"
+                " at all times, and you would like to monitor <br /> "
+                "temperatures, please add <br />"
+                "bed and/or number&#95of&#95tools to your config <br />"
+                "and restart.",
                 title=NOTIFICATION_TITLE,
-                notification_id=NOTIFICATION_ID)
+                notification_id=NOTIFICATION_ID,
+            )
 
     devices = []
     types = ["current", "active", "standby"]
     bed_types = ["current", "active"]
 
-    for octo_type in monitored_conditions:
-        if octo_type == "Temperatures":
+    for duet3d_type in monitored_conditions:
+        endpoint = SENSOR_TYPES[duet3d_type][0]
+
+        if duet3d_type == "Temperatures":
             for tool in tools:
-                if tool == 'bed':
+                if tool == "bed":
                     for temp_type in bed_types:
                         new_sensor = Duet3DSensor(
-                            duet3d_api, temp_type, temp_type, name,
-                            SENSOR_TYPES[octo_type][3], SENSOR_TYPES[octo_type][0],
-                            SENSOR_TYPES[octo_type][1], tool)
+                            duet3d_api,
+                            temp_type,
+                            temp_type,
+                            name,
+                            SENSOR_TYPES[duet3d_type][3],
+                            SENSOR_TYPES[duet3d_type][0],
+                            SENSOR_TYPES[duet3d_type][1],
+                            tool,
+                        )
                         devices.append(new_sensor)
                 else:
                     for temp_type in types:
                         new_sensor = Duet3DSensor(
-                            duet3d_api, temp_type, temp_type, name,
-                            SENSOR_TYPES[octo_type][3], SENSOR_TYPES[octo_type][0],
-                            SENSOR_TYPES[octo_type][1], tool)
+                            duet3d_api,
+                            temp_type,
+                            temp_type,
+                            name,
+                            SENSOR_TYPES[duet3d_type][3],
+                            SENSOR_TYPES[duet3d_type][0],
+                            SENSOR_TYPES[duet3d_type][1],
+                            tool,
+                        )
                         devices.append(new_sensor)
+        elif endpoint == "array":
+            # "Position": [
+            #     "array",
+            #     "coords.xyz",
+            #     "x,y,z",
+            #     "mm,mm,mm",
+            #     "mdi:format-vertical-align-top,mdi:format-vertical-align-top,mdi:format-vertical-align-top",
+            # ],
+            # api,
+            # condition,
+            # sensor_type,
+            # sensor_name,
+            # unit,
+            # endpoint,
+            # group,
+            # tool=None,
+            # icon=None,
+            group = SENSOR_TYPES[duet3d_type][1]
+            keys = SENSOR_TYPES[duet3d_type][2].split(",")
+            units = SENSOR_TYPES[duet3d_type][3].split(",")
+            icons = SENSOR_TYPES[duet3d_type][4].split(",")
+            index = 0
+
+            for array_item in keys:
+                new_sensor = Duet3DSensor(
+                    duet3d_api,
+                    duet3d_type,
+                    array_item,
+                    f"{name} {array_item.upper()}",
+                    units[index],
+                    endpoint,
+                    group,
+                    f"{index}",
+                    icons[index],
+                )
+                devices.append(new_sensor)
+                index += 1
+
+            # new_sensor = Duet3DSensor(
+            #     duet3d_api,
+            #     duet3d_type,
+            #     "y",
+            #     f"{name} Y",
+            #     SENSOR_TYPES[duet3d_type][3],
+            #     SENSOR_TYPES[duet3d_type][0],
+            #     SENSOR_TYPES[duet3d_type][1],
+            #     "1",
+            #     SENSOR_TYPES[duet3d_type][4],
+            # )
+            # devices.append(new_sensor)
+
+            # new_sensor = Duet3DSensor(
+            #     duet3d_api,
+            #     duet3d_type,
+            #     "z",
+            #     f"{name} Z",
+            #     SENSOR_TYPES[duet3d_type][3],
+            #     SENSOR_TYPES[duet3d_type][0],
+            #     SENSOR_TYPES[duet3d_type][1],
+            #     "2",
+            #     SENSOR_TYPES[duet3d_type][4],
+            # )
+            # devices.append(new_sensor)
         else:
             new_sensor = Duet3DSensor(
-                duet3d_api, octo_type, SENSOR_TYPES[octo_type][2],
-                name, SENSOR_TYPES[octo_type][3], SENSOR_TYPES[octo_type][0],
-                SENSOR_TYPES[octo_type][1], None, SENSOR_TYPES[octo_type][4])
+                duet3d_api,
+                duet3d_type,
+                SENSOR_TYPES[duet3d_type][2],
+                name,
+                SENSOR_TYPES[duet3d_type][3],
+                SENSOR_TYPES[duet3d_type][0],
+                SENSOR_TYPES[duet3d_type][1],
+                None,
+                SENSOR_TYPES[duet3d_type][4],
+            )
             devices.append(new_sensor)
     add_entities(devices, True)
 
 
 class Duet3DSensor(Entity):
-    """Representation of an OctoPrint sensor."""
+    """Representation of an Duet3D sensor."""
 
-    def __init__(self, api, condition, sensor_type, sensor_name, unit,
-                 endpoint, group, tool=None, icon=None):
-        """Initialize a new OctoPrint sensor."""
+    def __init__(
+        self,
+        api,
+        condition,
+        sensor_type,
+        sensor_name,
+        unit,
+        endpoint,
+        group,
+        tool=None,
+        icon=None,
+    ):
+        """Initialize a new Duet3D sensor."""
         self.sensor_name = sensor_name
         if tool is None:
-            self._name = '{} {}'.format(sensor_name, condition)
+            self._name = f"{sensor_name} {condition}"
+        elif endpoint is "array":
+            self._name = f"{sensor_name} {condition}"
         else:
-            self._name = '{} {} tool{} {}'.format(
-                sensor_name, condition, tool, 'temp')
+            self._name = f"{sensor_name} {condition} tool{tool} temp"
         self.sensor_type = sensor_type
         self.api = api
         self._state = None
@@ -89,7 +185,7 @@ class Duet3DSensor(Entity):
         self.api_tool = tool
         self._icon = icon
         self._available = False
-        _LOGGER.debug("Created OctoPrint sensor %r", self)
+        _LOGGER.debug("Created Duet3D sensor %r", self)
 
     @property
     def name(self):
@@ -99,10 +195,19 @@ class Duet3DSensor(Entity):
     @property
     def state(self):
         """Return the state of the sensor."""
-        print_status_dict = {   'S':'Stopped',           'M':'Simulating', 
-            'P': 'Printing',    'I':'Idle',              'C':'Configuring',
-            'B':'Busy',         'D':'Decelerating',      'R':'Resuming', 
-            'H':'Halted',       'F':'Flashing Firmware', 'T':'Changin Tool'}
+        print_status_dict = {
+            "S": "Stopped",
+            "M": "Simulating",
+            "P": "Printing",
+            "I": "Idle",
+            "C": "Configuring",
+            "B": "Busy",
+            "D": "Decelerating",
+            "R": "Resuming",
+            "H": "Halted",
+            "F": "Flashing Firmware",
+            "T": "Changin Tool",
+        }
 
         sensor_unit = self.unit_of_measurement
 
@@ -123,10 +228,11 @@ class Duet3DSensor(Entity):
 
     def update(self):
         """Update state of sensor."""
+
         try:
             self._state = self.api.update(
-                self.sensor_type, self.api_endpoint, self.api_group,
-                self.api_tool)
+                self.sensor_type, self.api_endpoint, self.api_group, self.api_tool
+            )
             self._available = True
         except requests.exceptions.ConnectionError:
             # Error calling the api, already logged in api.update()
@@ -141,4 +247,3 @@ class Duet3DSensor(Entity):
     @property
     def available(self):
         return self._available
-    

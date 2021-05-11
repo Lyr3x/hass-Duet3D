@@ -26,7 +26,7 @@ Add the following config to the `/config/configuration.yaml` file:
 
 ```yaml
 # Duet Integration
-duet3d:
+duet3d_printer:
   host: !secret duet3d-host
   name: !secret duet3d-name
   number_of_tools: 1
@@ -38,6 +38,7 @@ duet3d:
       - 'Job Percentage'
       - 'Time Elapsed'
       - 'Time Remaining'
+      - 'Position'
 ```
 
 Add the following to your Lovelace dashboard. Remember to update the entity names with those of your own printer (defined by the value of `duet3d-name`)
