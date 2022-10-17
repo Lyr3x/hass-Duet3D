@@ -6,6 +6,7 @@ import voluptuous as vol
 
 from .api import IntegrationDuet3DPrinterApiClient
 from .const import (
+    CONF_HOST,
     DOMAIN
 )
 
@@ -20,51 +21,61 @@ class Duet3DPrinterFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         """Initialize."""
         self._errors = {}
 
-    async def async_step_user(self, user_input=None):
-        """Handle a flow initialized by the user."""
-        self._errors = {}
+    async def async_step_user(self, info):
+        if info is not None:
+            self._test_credentials(info[CONF_HOST])
+
+        return self.async_show_form(
+            step_id="user", data_schema=vol.Schema({vol.Required(CONF_HOST, default=info[CONF_HOST]): str})
+        )
+
+    # async def async_step_user(self, user_input=None):
+    #     """Handle a flow initialized by the user."""
+    #     self._errors = {}
 
         # Uncomment the next 2 lines if only a single instance of the integration is allowed:
         # if self._async_current_entries():
         #     return self.async_abort(reason="single_instance_allowed")
 
-        if user_input is not None:
-            valid = await self._test_credentials(
-                user_input[DOMAIN]
-            )
-            if valid:
-                return self.async_create_entry(
-                    title=user_input[DOMAIN], data=user_input
-                )
-            else:
-                self._errors["base"] = "auth"
+       
 
-            return await self._show_config_form(user_input)
+        # if user_input is not None:
+        #     valid = await self._test_credentials(
+        #         user_input[DOMAIN]
+        #     )
+        #     if valid:
+        #         return self.async_create_entry(
+        #             title=user_input[HOST], data=user_input
+        #         )
+        #     else:
+        #         self._errors["base"] = "auth"
 
-        user_input = {}
-        # Provide defaults for form
-        user_input[DOMAIN] = ""
+        #     return await self._show_config_form(user_input)
 
-        return await self._show_config_form(user_input)
+        # user_input = {}
+        # # Provide defaults for form
+        # user_input[DOMAIN] = ""
+
+        # return await self._show_config_form(user_input)
 
     # @staticmethod
     # @callback
     # def async_get_options_flow(config_entry):
     #     return Duet3DPrinterOptionsFlowHandler(config_entry)
 
-    async def _show_config_form(self, user_input):  # pylint: disable=unused-argument
-        """Show the configuration form to edit location data."""
-        return self.async_show_form(
-            step_id="user",
-            data_schema=vol.Schema(
-                {
-                    vol.Required(DOMAIN, default=user_input[DOMAIN]): str,
-                }
-            ),
-            errors=self._errors,
-        )
+    # async def _show_config_form(self, user_input):  # pylint: disable=unused-argument
+    #     """Show the configuration form to edit location data."""
+    #     return self.async_show_form(
+    #         step_id="user",
+    #         data_schema=vol.Schema(
+    #             {
+    #                 vol.Required(DOMAIN, default=user_input[DOMAIN]): str,
+    #             }
+    #         ),
+    #         errors=self._errors,
+    #     )
 
-    async def _test_credentials(self, domain):
+    async def _test_credentials(self, host):
         """Return true if credentials is valid."""
         return True
         # try:
