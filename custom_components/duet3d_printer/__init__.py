@@ -12,6 +12,7 @@ from homeassistant.const import (
     CONF_HOST,
     CONTENT_TYPE_JSON,
     CONF_NAME,
+    CONF_PASSWORD,
     CONF_PATH,
     CONF_PORT,
     CONF_SSL,
@@ -101,6 +102,7 @@ CONFIG_SCHEMA = vol.Schema(
                     {
                         # vol.Required(CONF_API_KEY): cv.string,
                         vol.Required(CONF_HOST): cv.string,
+                        vol.Required(CONF_PASSWORD) : cv.string,
                         vol.Optional(CONF_SSL, default=False): cv.boolean,
                         vol.Optional(CONF_PORT, default=80): cv.port,
                         # type 2, extended infos, type 3, print status infos
@@ -142,15 +144,17 @@ def setup(hass, config):
     for printer in config[DOMAIN]:
         name = printer[CONF_NAME]
         ssl = "s" if printer[CONF_SSL] else ""
-        base_url = "http{}://{}:{}{}api/".format(
+        api_url = "http{}://{}:{}{}".format(
             ssl, printer[CONF_HOST], printer[CONF_PORT], printer[CONF_PATH]
         )
         api_key = 0
         number_of_tools = printer[CONF_NUMBER_OF_TOOLS]
         bed = printer[CONF_BED]
+        connect_path = "/rr_connect?password=" + printer[CONF_PASSWORD]
+        connect_url = "http{0}://{1}:{2}{3}".format(ssl, printer[CONF_HOST], printer[CONF_PORT], connect_path)
         try:
-            octoprint_api = Duet3dAPI(base_url, api_key, bed, number_of_tools)
-            printers[base_url] = octoprint_api
+            octoprint_api = Duet3dAPI(connect_url, api_url, api_key, bed, number_of_tools)
+            printers[api_url] = octoprint_api
             octoprint_api.get("printer")
             octoprint_api.get("job")
         except requests.exceptions.RequestException as conn_err:
@@ -162,7 +166,7 @@ def setup(hass, config):
             hass,
             "sensor",
             DOMAIN,
-            {"name": name, "base_url": base_url, "sensors": sensors},
+            {"name": name, "base_url": api_url, "sensors": sensors},
             config,
         )
         b_sensors = printer[CONF_BINARY_SENSORS][CONF_MONITORED_CONDITIONS]
@@ -170,7 +174,7 @@ def setup(hass, config):
             hass,
             "binary_sensor",
             DOMAIN,
-            {"name": name, "base_url": base_url, "sensors": b_sensors},
+            {"name": name, "base_url": api_url, "sensors": b_sensors},
             config,
         )
         success = True
@@ -181,11 +185,12 @@ def setup(hass, config):
 class Duet3dAPI:
     """Simple JSON wrapper for OctoPrint's API."""
 
-    def __init__(self, api_url, key, bed, number_of_tools):
+    def __init__(self, connect_url, api_url, key, bed, number_of_tools):
         """Initialize OctoPrint API and set headers needed later."""
+        self.connect_url = connect_url
         self.api_url = api_url
         self.headers = {
-            CONTENT_TYPE: CONTENT_TYPE_JSON,
+            "CONTENT_TYPE": "CONTENT_TYPE_JSON",
             #'X-Api-Key': key,
         }
         self.printer_last_reading = [{}, None]
@@ -230,6 +235,7 @@ class Duet3dAPI:
 
         url = self.api_url  # + endpoint
         try:
+            connect = requests.get(self.connect_url)
             response = requests.get(url, headers=self.headers, timeout=9)
             response.raise_for_status()
             if endpoint == "job":
