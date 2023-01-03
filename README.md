@@ -15,7 +15,7 @@ This is a work in progress, the code is working but there is still lots to do
 
 ### Manual
 
-1. Download and unzip the [repo archive](https://github.com/garethbradley/hass-Duet3D/archive/master.zip). (You could also click "Download ZIP" after pressing the green button in the repo, alternatively, you could clone the repo from SSH add-on).
+1. Download and unzip the [repo archive](https://github.com/repier37/hass-Duet3D/archive/master.zip). (You could also click "Download ZIP" after pressing the green button in the repo, alternatively, you could clone the repo from SSH add-on).
 2. Copy contents of the archive/repo into your `/config` directory.
 3. Restart your Home Assistant.
 
@@ -29,6 +29,7 @@ Add the following config to the `/config/configuration.yaml` file:
 duet3d_printer:
   host: !secret duet3d-host
   name: !secret duet3d-name
+  password: !secret duet3d-password
   number_of_tools: 1
   bed: true
   sensors:
