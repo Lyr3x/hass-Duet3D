@@ -27,7 +27,7 @@ Add the following config to the `/config/configuration.yaml` file:
 ```yaml
 # Duet Integration
 duet3d_printer:
-  host: !secret duet3d-host
+  host: !secret duet3d-host # 192.168.1.1
   name: !secret duet3d-name
   password: !secret duet3d-password
   number_of_tools: 1
