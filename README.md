@@ -9,7 +9,7 @@ This is a work in progress, the code is working but there is still lots to do
 ### From HACS
 
 1. Install HACS if you haven't already (see [installation guide](https://hacs.netlify.com/docs/installation/manual)).
-2. Add custom repository `https://github.com/garethbradley/hass-Duet3D` as "Integration" in the settings tab of HACS.
+2. Add custom repository `https://github.com/repier37/hass-Duet3D` as "Integration" in the settings tab of HACS.
 3. Find and install "Duet3D" integration in HACS's "Integrations" tab.
 4. Restart your Home Assistant.
 
