@@ -6,11 +6,8 @@ import requests
 import voluptuous as vol
 from aiohttp.hdrs import CONTENT_TYPE
 
-# from homeassistant.components.discovery import SERVICE_OCTOPRINT
 from homeassistant.const import (
-    CONF_API_KEY,
     CONF_HOST,
-    CONTENT_TYPE_JSON,
     CONF_NAME,
     CONF_PASSWORD,
     CONF_PATH,
@@ -70,19 +67,43 @@ BINARY_SENSOR_SCHEMA = vol.Schema(
 SENSOR_TYPES = {
     # API Endpoint, Group, Key, unit, icon
     # Group, subgroup, key, unit, icon
-    "Temperatures": ["temps", "temperature", "*", TEMP_CELSIUS],
-    "Current State": ["job", "status", "text", None, "mdi:printer-3d"],
-    "Job Percentage": ["job", "fractionPrinted", "completion", "%", "mdi:file-percent"],
-    "Time Remaining": ["job", "timesLeft", "file", "seconds", "mdi:clock-end"],
-    "Time Elapsed": ["job", "printDuration", "printTime", "seconds", "mdi:clock-start"],
+    "Temperatures": [
+        "heaters",
+        "temperature",
+        "*",
+        TEMP_CELSIUS,
+        "mdi:thermometer",
+    ],
+    "Current State": [
+        "state",
+        "status",
+        "text",
+        None,
+        "mdi:printer-3d",
+    ],
+    "Time Remaining": [
+        "job",
+        "timesLeft",
+        "file",
+        "seconds",
+        "mdi:clock-end",
+    ],
+    "Time Elapsed": [
+        "job",
+        "printDuration",
+        "printTime",
+        "seconds",
+        "mdi:clock-start",
+    ],
     "Position": [
-        "array",
-        "coords.xyz",
+        "move",
+        "xyz",
         "x,y,z",
         "mm,mm,mm",
         "mdi:axis-x-arrow,mdi:axis-y-arrow,mdi:axis-z-arrow",
     ],
 }
+
 
 SENSOR_SCHEMA = vol.Schema(
     {
@@ -100,14 +121,11 @@ CONFIG_SCHEMA = vol.Schema(
             [
                 vol.Schema(
                     {
-                        # vol.Required(CONF_API_KEY): cv.string,
                         vol.Required(CONF_HOST): cv.string,
-                        vol.Required(CONF_PASSWORD) : cv.string,
                         vol.Optional(CONF_SSL, default=False): cv.boolean,
                         vol.Optional(CONF_PORT, default=80): cv.port,
-                        # type 2, extended infos, type 3, print status infos
                         vol.Optional(
-                            CONF_PATH, default="/rr_status?type=3"
+                            CONF_PATH, default="/machine/status"
                         ): ensure_valid_path,
                         vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
                         vol.Optional(CONF_NUMBER_OF_TOOLS, default=0): cv.positive_int,
@@ -127,15 +145,10 @@ CONFIG_SCHEMA = vol.Schema(
 
 
 def setup(hass, config):
-    """Set up the OctoPrint component."""
+    """Set up the Duet component."""
     printers = hass.data[DOMAIN] = {}
     success = False
 
-    # def device_discovered(service, info):
-    #     """Gets called when a Duet3D device has been discovered."""
-    #     _LOGGER.debug("Found a Duet3D device: %s", info)
-    #
-    # discovery.listen(hass, SERVICE_OCTOPRINT, device_discovered)
 
     if DOMAIN not in config:
         # Skip the setup if there is no configuration present
@@ -147,18 +160,16 @@ def setup(hass, config):
         api_url = "http{}://{}:{}{}".format(
             ssl, printer[CONF_HOST], printer[CONF_PORT], printer[CONF_PATH]
         )
-        api_key = 0
         number_of_tools = printer[CONF_NUMBER_OF_TOOLS]
         bed = printer[CONF_BED]
-        connect_path = "/rr_connect?password=" + printer[CONF_PASSWORD]
-        connect_url = "http{0}://{1}:{2}{3}".format(ssl, printer[CONF_HOST], printer[CONF_PORT], connect_path)
+        connect_url = "http{0}://{1}:{2}".format(ssl, printer[CONF_HOST], printer[CONF_PORT])
         try:
-            octoprint_api = Duet3dAPI(connect_url, api_url, api_key, bed, number_of_tools)
-            printers[api_url] = octoprint_api
-            octoprint_api.get("printer")
-            octoprint_api.get("job")
+            duet_api = Duet3dAPI(connect_url, api_url, bed, number_of_tools)
+            printers[api_url] = duet_api
+            duet_api.get("printer")
+            duet_api.get("job")
         except requests.exceptions.RequestException as conn_err:
-            _LOGGER.error("Error setting up OctoPrint API: %r", conn_err)
+            _LOGGER.error("Error setting up Duet API: %r", conn_err)
             continue
 
         sensors = printer[CONF_SENSORS][CONF_MONITORED_CONDITIONS]
@@ -183,10 +194,10 @@ def setup(hass, config):
 
 
 class Duet3dAPI:
-    """Simple JSON wrapper for OctoPrint's API."""
+    """Simple JSON wrapper for Duet3D's API."""
 
-    def __init__(self, connect_url, api_url, key, bed, number_of_tools):
-        """Initialize OctoPrint API and set headers needed later."""
+    def __init__(self, connect_url, api_url, bed, number_of_tools):
+        """Initialize Duet3D API and set headers needed later."""
         self.connect_url = connect_url
         self.api_url = api_url
         self.headers = {
