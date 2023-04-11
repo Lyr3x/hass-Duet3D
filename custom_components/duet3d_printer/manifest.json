@@ -4,11 +4,6 @@
   "config_flow": true,
   "documentation": "https://github.com/Lyr3x/hass-Duet3D",
   "issue_tracker": "https://github.com/Lyr3x/hass-Duet3D/issues",
-  "requirements": [],
-  "ssdp": [],
-  "zeroconf": [],
-  "homekit": {},
-  "dependencies": [],
   "codeowners": [
     "@Lyr3x"
   ],

@@ -11,10 +11,11 @@ from .const import (
     CONF_NUMBER_OF_TOOLS,
     CONF_BED,
     CONF_MONITORED_CONDITIONS,
-    DOMAIN
+    DOMAIN,
 )
 
-class Duet3dAPIConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+
+class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Config flow for Duet3DPrinter."""
 
     VERSION = 1
