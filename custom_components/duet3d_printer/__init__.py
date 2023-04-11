@@ -4,26 +4,29 @@ import time
 
 import requests
 import voluptuous as vol
-from aiohttp.hdrs import CONTENT_TYPE
 
 from homeassistant.const import (
     CONF_HOST,
     CONF_NAME,
     CONF_PATH,
     CONF_PORT,
-    CONF_SSL,
     TEMP_CELSIUS,
     CONF_MONITORED_CONDITIONS,
     CONF_SENSORS,
     CONF_BINARY_SENSORS,
+    CONF_SSL,
+    CONF_VERIFY_SSL,
+    Platform,
 )
-from homeassistant.helpers import discovery
+# from homeassistant.helpers import discovery
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.discovery import load_platform
 from homeassistant.util import slugify as util_slugify
+from homeassistant.core import HomeAssistant
+from homeassistant.config_entries import ConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
-
+PLATFORMS = [Platform.BINARY_SENSOR, Platform.SENSOR]
 CONF_BED = "bed"
 CONF_NUMBER_OF_TOOLS = "number_of_tools"
 
@@ -142,6 +145,19 @@ CONFIG_SCHEMA = vol.Schema(
     extra=vol.ALLOW_EXTRA,
 )
 
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Set up Duet3D from a config entry."""
+
+    if DOMAIN not in hass.data:
+        hass.data[DOMAIN] = {}
+
+    if CONF_VERIFY_SSL not in entry.data:
+        data = {**entry.data, CONF_VERIFY_SSL: True}
+        hass.config_entries.async_update_entry(entry, data=data)
+
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    return True
 
 def setup(hass, config):
     """Set up the Duet component."""
