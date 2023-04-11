@@ -172,7 +172,7 @@ class Duet3DSensor(Entity):
         self.sensor_name = sensor_name
         if tool is None:
             self._name = f"{sensor_name} {condition}"
-        elif endpoint is "array":
+        elif endpoint == "array":
             self._name = f"{sensor_name} {condition}"
         else:
             self._name = f"{sensor_name} {condition} tool{tool} temp"
