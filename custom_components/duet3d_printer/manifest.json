@@ -1,12 +1,15 @@
 {
   "domain": "duet3d_printer",
   "name": "Duet3D Printer",
-  "config_flow": true,
-  "documentation": "https://github.com/Lyr3x/hass-Duet3D",
-  "issue_tracker": "https://github.com/Lyr3x/hass-Duet3D/issues",
   "codeowners": [
     "@Lyr3x"
   ],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/Lyr3x/hass-Duet3D",
+  "homekit": {},
   "iot_class": "local_polling",
-  "version": "v0.1.0"
+  "requirements": [],
+  "ssdp": [],
+  "zeroconf": []
 }
