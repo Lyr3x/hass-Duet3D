@@ -93,6 +93,7 @@ SENSOR_TYPES = {
         "seconds",
         "mdi:clock-start",
     ],
+    "Progress": ["job", "duration", "file.printTime", "percentage", "mdi:clock-end"],
     "Position": [
         "move",
         "axes",
@@ -126,7 +127,7 @@ CONFIG_SCHEMA = vol.Schema(
                             CONF_PATH, default="/machine/status"
                         ): ensure_valid_path,
                         vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
-                        vol.Optional(CONF_NUMBER_OF_TOOLS, default=0): cv.positive_int,
+                        vol.Required(CONF_NUMBER_OF_TOOLS, default=0): cv.positive_int,
                         vol.Optional(CONF_BED, default=False): cv.boolean,
                         vol.Optional(CONF_SENSORS, default={}): SENSOR_SCHEMA,
                         vol.Optional(
@@ -147,7 +148,6 @@ def setup(hass, config):
     printers = hass.data[DOMAIN] = {}
     success = False
 
-
     if DOMAIN not in config:
         # Skip the setup if there is no configuration present
         return True
@@ -160,7 +160,9 @@ def setup(hass, config):
         )
         number_of_tools = printer[CONF_NUMBER_OF_TOOLS]
         bed = printer[CONF_BED]
-        connect_url = "http{0}://{1}:{2}".format(ssl, printer[CONF_HOST], printer[CONF_PORT])
+        connect_url = "http{0}://{1}:{2}".format(
+            ssl, printer[CONF_HOST], printer[CONF_PORT]
+        )
         try:
             duet_api = Duet3dAPI(connect_url, api_url, bed, number_of_tools)
             printers[api_url] = duet_api
@@ -197,9 +199,7 @@ class Duet3dAPI:
         """Initialize Duet3D API and set headers needed later."""
         self.connect_url = connect_url
         self.api_url = api_url
-        self.headers = {
-            "CONTENT_TYPE": "CONTENT_TYPE_JSON"
-        }
+        self.headers = {"CONTENT_TYPE": "CONTENT_TYPE_JSON"}
         self.status_last_reading = [{}, None]
         self.available = False
         self.status_error_logged = False
@@ -247,9 +247,7 @@ class Duet3dAPI:
                 self.status_error_logged = False
             return data
         except Exception as conn_exc:  # pylint: disable=broad-except
-            log_string = "Failed to update Duet status. " + "  Error: %s" % (
-                conn_exc
-            )
+            log_string = "Failed to update Duet status. " + "  Error: %s" % (conn_exc)
             # Only log the first failure
             if endpoint == "status":
                 log_string = "Endpoint: status " + log_string
@@ -294,11 +292,20 @@ def get_value_from_json(json_dict, end_point, sensor_type, group, tool):
                 return json_dict[end_point][group][tool][sensor_type]
         return None
     elif end_point == "move":
-        axis_json =json_dict[end_point][group]
+        axis_json = json_dict[end_point][group]
         axes = ["X", "Y", "Z"]
-        positions = [axis_json[i]["machinePosition"] for i in range(len(axis_json)) if axis_json[i]["letter"] in axes]
+        positions = [
+            axis_json[i]["machinePosition"]
+            for i in range(len(axis_json))
+            if axis_json[i]["letter"] in axes
+        ]
         _LOGGER.debug(positions)
         return str(positions)
+    elif end_point == "job" and group == "duration":
+        job_duration = json_dict[end_point][group]
+        job_file_total_print_time = json_dict[end_point]["file"]["printTime"]
+        progress_percentage = job_duration / job_file_total_print_time * 100
+        return progress_percentage
     else:
         levels = group.split(".")
 
