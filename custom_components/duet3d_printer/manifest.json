@@ -2,7 +2,7 @@
   "domain": "duet3d_printer",
   "name": "Duet3D Printer",
   "config_flow": true,
-  "documentation": "https://www.home-assistant.io/integrations/duet3d_printer",
+  "documentation": "https://github.com/Lyr3x/hass-Duet3D",
   "issue_tracker": "https://github.com/Lyr3x/hass-Duet3D/issues",
   "requirements": [],
   "ssdp": [],
