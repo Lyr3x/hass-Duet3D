@@ -2,7 +2,12 @@
 
 Code Based on the OctoPrint integration from Hass: [octoprint integration github](https://github.com/home-assistant/home-assistant/tree/dev/homeassistant/components/octoprint)
 
-This is a work in progress. Entities are created properly and values can be read from the `/machine/status` endpoint of your Duet board. The integration is meant to use with RRF 3.4.5 and onwards
+This is a work in progress. Entities are created properly and values can be read from the `/machine/status` endpoint of your Duet board. The integration is meant to use with RRF 3.4.5 and onwards.
+
+# Known Issues
+* Config flow not working
+* Printing sensor not working
+* Time elapsed / remaining sensors not working
 
 ## Installation
 
