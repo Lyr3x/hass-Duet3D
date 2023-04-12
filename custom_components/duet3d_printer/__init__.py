@@ -5,179 +5,97 @@ import time
 import requests
 import voluptuous as vol
 
+from .schema import CONFIG_SCHEMA, SENSOR_TYPES, BINARY_SENSOR_TYPES
+
 from homeassistant.const import (
     CONF_HOST,
-    CONF_NAME,
     CONF_PATH,
     CONF_PORT,
-    TEMP_CELSIUS,
-    CONF_MONITORED_CONDITIONS,
     CONF_SENSORS,
     CONF_BINARY_SENSORS,
+    CONF_MONITORED_CONDITIONS,
     CONF_SSL,
-    CONF_VERIFY_SSL,
     Platform,
 )
+
+from .const import (
+    CONF_NAME,
+    CONF_NUMBER_OF_TOOLS,
+    CONF_BED,
+    DOMAIN,
+)
+
 # from homeassistant.helpers import discovery
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.discovery import load_platform
-from homeassistant.util import slugify as util_slugify
 from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
 PLATFORMS = [Platform.BINARY_SENSOR, Platform.SENSOR]
-CONF_BED = "bed"
-CONF_NUMBER_OF_TOOLS = "number_of_tools"
 
-DEFAULT_NAME = "Duet3D Printer"
-DOMAIN = "duet3d_printer"
-
-
-def has_all_unique_names(value):
-    """Validate that printers have an unique name."""
-    names = [util_slugify(printer["name"]) for printer in value]
-    vol.Schema(vol.Unique())(names)
-    return value
-
-
-def ensure_valid_path(value):
-    """Validate the path, ensuring it starts and ends with a /."""
-    vol.Schema(cv.string)(value)
-    if value[0] != "/":
-        value = "/" + value
-    if value[-1] != "/":
-        value += "/"
-    return value
-
-
-BINARY_SENSOR_TYPES = {
-    # API Endpoint, Group, Key, unit
-    "Printing": ["job", "status", "printing", None],
-}
-
-BINARY_SENSOR_SCHEMA = vol.Schema(
-    {
-        vol.Optional(
-            CONF_MONITORED_CONDITIONS, default=list(BINARY_SENSOR_TYPES)
-        ): vol.All(cv.ensure_list, [vol.In(BINARY_SENSOR_TYPES)]),
-        vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
-    }
-)
-
-SENSOR_TYPES = {
-    # API Endpoint, Group, Key, unit, icon
-    # Group, subgroup, key, unit, icon
-    "Temperatures": [
-        "heat",
-        "heaters",
-        "*",
-        TEMP_CELSIUS,
-        "mdi:thermometer",
-    ],
-    "Current State": [
-        "state",
-        "state.status",
-        "status",
-        None,
-        "mdi:printer-3d",
-    ],
-    "Time Remaining": [
-        "job",
-        "timesLeft.file",
-        "file",
-        "seconds",
-        "mdi:clock-end",
-    ],
-    "Time Elapsed": [
-        "job",
-        "printDuration",
-        "printTime",
-        "seconds",
-        "mdi:clock-start",
-    ],
-    "Progress": ["job", "duration", "file.printTime", "percentage", "mdi:clock-end"],
-    "Position": [
-        "move",
-        "axes",
-        "x,y,z",
-        "mm,mm,mm",
-        "mdi:axis-x-arrow,mdi:axis-y-arrow,mdi:axis-z-arrow",
-    ],
-}
-
-
-SENSOR_SCHEMA = vol.Schema(
-    {
-        vol.Optional(CONF_MONITORED_CONDITIONS, default=list(SENSOR_TYPES)): vol.All(
-            cv.ensure_list, [vol.In(SENSOR_TYPES)]
-        ),
-        vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
-    }
-)
-
-CONFIG_SCHEMA = vol.Schema(
-    {
-        DOMAIN: vol.All(
-            cv.ensure_list,
-            [
-                vol.Schema(
-                    {
-                        vol.Required(CONF_HOST): cv.string,
-                        vol.Optional(CONF_SSL, default=False): cv.boolean,
-                        vol.Optional(CONF_PORT, default=80): cv.port,
-                        vol.Optional(
-                            CONF_PATH, default="/machine/status"
-                        ): ensure_valid_path,
-                        vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
-                        vol.Required(CONF_NUMBER_OF_TOOLS, default=0): cv.positive_int,
-                        vol.Optional(CONF_BED, default=False): cv.boolean,
-                        vol.Optional(CONF_SENSORS, default={}): SENSOR_SCHEMA,
-                        vol.Optional(
-                            CONF_BINARY_SENSORS, default={}
-                        ): BINARY_SENSOR_SCHEMA,
-                    }
-                )
-            ],
-            has_all_unique_names,
-        ),
-    },
-    extra=vol.ALLOW_EXTRA,
-)
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Duet3D from a config entry."""
 
-    if DOMAIN not in hass.data:
-        hass.data[DOMAIN] = {}
-
-    if CONF_VERIFY_SSL not in entry.data:
-        data = {**entry.data, CONF_VERIFY_SSL: True}
-        hass.config_entries.async_update_entry(entry, data=data)
-
-    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-
+    hass.data.setdefault(DOMAIN, {})
+    hass_data = dict(entry.data)
+    # Registers update listener to update config entry when options are updated.
+    unsub_options_update_listener = entry.add_update_listener(options_update_listener)
+    # Store a reference to the unsubscribe function to cleanup if an entry is unloaded.
+    hass_data["unsub_options_update_listener"] = unsub_options_update_listener
+    hass.data[DOMAIN][entry.entry_id] = hass_data
+    _LOGGER.critical(entry)
+    # Forward the setup to the sensor platform.
+    hass.async_create_task(
+        hass.config_entries.async_forward_entry_setup(entry, "sensor")
+    )
     return True
 
-def setup(hass, config):
-    """Set up the Duet component."""
-    printers = hass.data[DOMAIN] = {}
+
+async def options_update_listener(hass: HomeAssistant, config_entry: ConfigEntry):
+    """Handle options update."""
+    await hass.config_entries.async_reload(config_entry.entry_id)
+
+
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Unload a config entry."""
+    unload_ok = all(
+        await asyncio.gather(
+            *[hass.config_entries.async_forward_entry_unload(entry, "sensor")]
+        )
+    )
+    # Remove options_update_listener.
+    hass.data[DOMAIN][entry.entry_id]["unsub_options_update_listener"]()
+
+    # Remove config entry from domain.
+    if unload_ok:
+        hass.data[DOMAIN].pop(entry.entry_id)
+
+    return unload_ok
+
+
+def setup(hass, config) -> bool:
+    """Set up the Duet3D component from yaml configuration."""
+    printers = hass.data.setdefault(DOMAIN, {})
     success = False
 
     if DOMAIN not in config:
         # Skip the setup if there is no configuration present
+        _LOGGER.error("Domain is not in config. Skipping setup of integration")
         return True
 
-    for printer in config[DOMAIN]:
-        name = printer[CONF_NAME]
-        ssl = "s" if printer[CONF_SSL] else ""
+    setting = config[DOMAIN]
+    for setting in config[DOMAIN]:
+        name = setting[CONF_NAME]
+        ssl = "s" if setting.get(CONF_SSL, False) else ""
         api_url = "http{}://{}:{}{}".format(
-            ssl, printer[CONF_HOST], printer[CONF_PORT], printer[CONF_PATH]
+            ssl, setting[CONF_HOST], setting[CONF_PORT], setting[CONF_PATH]
         )
-        number_of_tools = printer[CONF_NUMBER_OF_TOOLS]
-        bed = printer[CONF_BED]
+        number_of_tools = setting[CONF_NUMBER_OF_TOOLS]
+        bed = setting[CONF_BED]
         connect_url = "http{0}://{1}:{2}".format(
-            ssl, printer[CONF_HOST], printer[CONF_PORT]
+            ssl, setting[CONF_HOST], setting[CONF_PORT]
         )
         try:
             duet_api = Duet3dAPI(connect_url, api_url, bed, number_of_tools)
@@ -185,9 +103,8 @@ def setup(hass, config):
             duet_api.get("status")
         except requests.exceptions.RequestException as conn_err:
             _LOGGER.error("Error setting up Duet API: %r", conn_err)
-            continue
 
-        sensors = printer[CONF_SENSORS][CONF_MONITORED_CONDITIONS]
+        sensors = setting[CONF_SENSORS][CONF_MONITORED_CONDITIONS]
         load_platform(
             hass,
             "sensor",
@@ -195,7 +112,7 @@ def setup(hass, config):
             {"name": name, "base_url": api_url, "sensors": sensors},
             config,
         )
-        b_sensors = printer[CONF_BINARY_SENSORS][CONF_MONITORED_CONDITIONS]
+        b_sensors = setting[CONF_BINARY_SENSORS][CONF_MONITORED_CONDITIONS]
         load_platform(
             hass,
             "binary_sensor",
