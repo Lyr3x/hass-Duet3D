@@ -83,7 +83,7 @@ class Duet3DBinarySensor(BinarySensorEntity):
                 self.sensor_type, self.api_endpoint, self.api_group, self.api_tool
             )
             self._available = True
-        except aiohttp.ClientError:
-            # Error calling the api, already logged in api.update()
+        except requests.exceptions.ConnectionError:
+            _LOGGER.error("Could not update sensor")
             self._available = False
             return

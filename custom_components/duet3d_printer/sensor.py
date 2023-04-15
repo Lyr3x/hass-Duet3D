@@ -230,12 +230,12 @@ class Duet3DSensor(Entity):
     async def async_update(self):
         """Update state of sensor."""
         try:
-            await self.api.async_update(
+            self._state = await self.api.async_update(
                 self.sensor_type, self.api_endpoint, self.api_group, self.api_tool
             )
             self._available = True
         except requests.exceptions.ConnectionError:
-            _LOGGER.critical("Could not update sensor")
+            _LOGGER.error("Could not update sensor")
             self._available = False
             return
 
@@ -246,8 +246,4 @@ class Duet3DSensor(Entity):
 
     @property
     def available(self):
-        return self._available
-
-    @property
-    def async_available(self):
         return self._available
