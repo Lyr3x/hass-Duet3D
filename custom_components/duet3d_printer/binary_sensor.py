@@ -2,7 +2,7 @@
 import logging
 
 import requests
-
+import aiohttp
 from homeassistant.components.binary_sensor import BinarySensorEntity
 
 from . import BINARY_SENSOR_TYPES, DOMAIN as COMPONENT_DOMAIN
@@ -76,12 +76,14 @@ class Duet3DBinarySensor(BinarySensorEntity):
         """Return the class of this sensor, from DEVICE_CLASSES."""
         return None
 
-    def update(self):
+    async def async_update(self):
         """Update state of sensor."""
         try:
-            self._state = self.api.update(
+            self._state = await self.api.async_update(
                 self.sensor_type, self.api_endpoint, self.api_group, self.api_tool
             )
-        except requests.exceptions.ConnectionError:
+            self._available = True
+        except aiohttp.ClientError:
             # Error calling the api, already logged in api.update()
+            self._available = False
             return
