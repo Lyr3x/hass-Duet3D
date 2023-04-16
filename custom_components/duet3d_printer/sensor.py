@@ -3,9 +3,11 @@
 import logging
 
 import requests
-
+import aiohttp
 from homeassistant.const import TEMP_CELSIUS
 from homeassistant.helpers.entity import Entity
+from homeassistant.core import callback
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import DOMAIN as COMPONENT_DOMAIN, SENSOR_TYPES
 
@@ -15,7 +17,7 @@ NOTIFICATION_ID = "duet3d_notification"
 NOTIFICATION_TITLE = "Duet3d sensor setup error"
 
 
-def setup_platform(hass, config, add_entities, discovery_info=None):
+def setup_platform(hass, config, async_add_entities, discovery_info=None):
     """Set up the available Duet3D sensors."""
     if discovery_info is None:
         return
@@ -150,7 +152,7 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
                 SENSOR_TYPES[duet3d_type][4],
             )
             devices.append(new_sensor)
-    add_entities(devices, True)
+    async_add_entities(devices, True)
 
 
 class Duet3DSensor(Entity):
@@ -206,11 +208,10 @@ class Duet3DSensor(Entity):
             "R": "Resuming",
             "H": "Halted",
             "F": "Flashing Firmware",
-            "T": "Changin Tool",
+            "T": "Changing Tool",
         }
-
+        _LOGGER.debug(self._state)
         sensor_unit = self.unit_of_measurement
-
         if self._state in print_status_dict:
             self._state = print_status_dict[self._state]
 
@@ -218,7 +219,7 @@ class Duet3DSensor(Entity):
             # API sometimes returns null and not 0
             if self._state is None:
                 self._state = 0
-            return round(self._state, 2)
+            return round(float(self._state), 2)
         return self._state
 
     @property
@@ -226,16 +227,15 @@ class Duet3DSensor(Entity):
         """Return the unit of measurement of this entity, if any."""
         return self._unit_of_measurement
 
-    def update(self):
+    async def async_update(self):
         """Update state of sensor."""
-
         try:
-            self._state = self.api.update(
+            self._state = await self.api.async_update(
                 self.sensor_type, self.api_endpoint, self.api_group, self.api_tool
             )
             self._available = True
         except requests.exceptions.ConnectionError:
-            # Error calling the api, already logged in api.update()
+            _LOGGER.error("Could not update sensor")
             self._available = False
             return
 
