@@ -169,7 +169,7 @@ CONFIG_SCHEMA = vol.Schema(
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up the Duet3D component from yaml configuration."""
-    printers = hass.data.setdefault(DOMAIN, {})
+    printers = hass.data[DOMAIN] = {}
     success = False
 
     if DOMAIN not in config:

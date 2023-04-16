@@ -9,11 +9,6 @@
           "port": "Port Number",
           "username": "[%key:common::config_flow::data::username%]"
         }
-      },
-      "reauth_confirm": {
-        "data": {
-          "username": "[%key:common::config_flow::data::username%]"
-        }
       }
     },
     "error": {

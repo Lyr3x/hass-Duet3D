@@ -1,5 +1,5 @@
 """Config flow for Duet3D Printer integration."""
-from homeassistant import config_entries
+from homeassistant import config_entries, exceptions
 import logging
 from typing import Any, Dict, Optional
 import voluptuous as vol
@@ -56,9 +56,36 @@ class Duet3dConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is None and self._user_input:
             user_input = self._user_input
 
-        if user_input is None:
-            data = self.discovery_schema or _schema_with_defaults()
-            return self.async_show_form(step_id="user", data_schema=data)
+    # def __init__(self) -> None:
+    #     """Handle a config flow for OctoPrint."""
+    #     _LOGGER.debug(self)
+    #     self.discovery_schema = None
+    #     self._user_input = None
+
+    async def async_step_user(self, user_input=None):
+        """Handle the initial step."""
+        # When coming back from the progress steps, the user_input is stored in the
+        # instance variable instead of being passed in
+        errors = {}
+        if user_input is not None:
+            try:
+                return self.async_create_entry(
+                    title=user_input[CONF_HOST], data=user_input
+                )
+            except CannotConnect:
+                errors["base"] = "cannot_connect"
+            except InvalidHost:
+                # The error string is set here, and should be translated.
+                # This example does not currently cover translations, see the
+                # comments on `DATA_SCHEMA` for further details.
+                # Set the error on the `host` field, not the entire form.
+                errors["host"] = "cannot_connect"
+            except Exception:  # pylint: disable=broad-except
+                _LOGGER.exception("Unexpected exception")
+                errors["base"] = "unknown"
+
+        _LOGGER.debug("No user input available")
+        return self.async_show_form(step_id="user", data_schema=_schema_with_defaults())
 
     async def _finish_config(self, user_input: dict):
         """Finish the configuration setup."""
@@ -76,3 +103,11 @@ class Duet3dConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_import(self, user_input):
         """Handle import."""
         return await self.async_step_user(user_input)
+
+
+class CannotConnect(exceptions.HomeAssistantError):
+    """Error to indicate we cannot connect."""
+
+
+class InvalidHost(exceptions.HomeAssistantError):
+    """Error to indicate there is an invalid hostname."""
