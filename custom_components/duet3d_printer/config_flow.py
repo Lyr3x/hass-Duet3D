@@ -5,7 +5,6 @@ from typing import Any, Dict, Optional
 import voluptuous as vol
 import homeassistant.helpers.config_validation as cv
 
-from .schema import CONFIG_SCHEMA
 from homeassistant.const import (
     CONF_HOST,
     CONF_PORT,

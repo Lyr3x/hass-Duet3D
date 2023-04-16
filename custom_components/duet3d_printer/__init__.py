@@ -6,10 +6,9 @@ import requests
 import voluptuous as vol
 import aiohttp
 import async_timeout
-from .schema import SENSOR_TYPES, BINARY_SENSOR_TYPES
 import homeassistant.helpers.config_validation as cv
 from homeassistant.core import HomeAssistant
-from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.util import slugify as util_slugify
 from homeassistant.helpers.discovery import load_platform
