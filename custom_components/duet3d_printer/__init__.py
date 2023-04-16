@@ -71,19 +71,19 @@ SENSOR_TYPES = {
     ],
     "Time Remaining": [
         "job",
-        "timesLeft.file",
+        "timesLeft",
         "file",
-        "seconds",
+        "min",
         "mdi:clock-end",
     ],
     "Time Elapsed": [
         "job",
         "printDuration",
         "printTime",
-        "seconds",
+        "min",
         "mdi:clock-start",
     ],
-    "Progress": ["job", "duration", "file.printTime", "percentage", "mdi:clock-end"],
+    "Progress": ["job", "progress", "file.printTime", "%", "mdi:clock-end"],
     "Position": [
         "move",
         "axes",
@@ -356,16 +356,29 @@ async def get_value_from_json(json_dict, end_point, sensor_type, group, tool):
             if axis_json[i]["letter"] in axes
         ]
         return str(positions)
-    elif end_point == "job" and group == "duration":
-        job_duration = json_dict[end_point][group]
-        job_file_total_print_time = json_dict[end_point]["file"]["printTime"]
-        progress_percentage = job_duration / job_file_total_print_time * 100
-        return progress_percentage
+    elif end_point == "job" and group == "progress":
+        job_total_num_of_layers = json_dict[end_point]["layer"]
+        job_printed_num_of_layers = json_dict[end_point]["file"]["numLayers"]
+        if (
+            job_total_num_of_layers is not None
+            and job_printed_num_of_layers is not None
+        ):
+            progress_percentage = (
+                job_total_num_of_layers / job_printed_num_of_layers
+            ) * 100
+            return progress_percentage
+        else:
+            return 0
+    elif end_point == "job" and group == "timesLeft":
+        printTimeLeft = json_dict[end_point][group]["file"]
+        if printTimeLeft is not None:
+            return round(printTimeLeft / 60.0, 2)
+        else:
+            return 0
+    elif end_point == "job" and group == "printDuration":
+        return round((json_dict[end_point]["file"]["printTime"]) / 60, 2)
     else:
         levels = group.split(".")
-
-        if group == "timesLeft":
-            return json_dict[group]["file"]
 
         for level in levels:
             _LOGGER.debug(
