@@ -78,8 +78,8 @@ SENSOR_TYPES = {
     ],
     "Time Elapsed": [
         "job",
-        "printDuration",
-        "printTime",
+        "duration",
+        "duration",
         "min",
         "mdi:clock-start",
     ],
@@ -375,8 +375,8 @@ async def get_value_from_json(json_dict, end_point, sensor_type, group, tool):
             return round(printTimeLeft / 60.0, 2)
         else:
             return 0
-    elif end_point == "job" and group == "printDuration":
-        return round((json_dict[end_point]["file"]["printTime"]) / 60, 2)
+    elif end_point == "job" and group == "duration":
+        return round((json_dict[end_point][group]) / 60, 2)
     else:
         levels = group.split(".")
 
