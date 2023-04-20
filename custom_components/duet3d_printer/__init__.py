@@ -5,6 +5,7 @@ import time
 import requests
 import voluptuous as vol
 import aiohttp
+import asyncio
 import async_timeout
 import homeassistant.helpers.config_validation as cv
 from homeassistant.core import HomeAssistant
@@ -213,6 +214,34 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         )
         success = True
 
+    async def send_gcode(call):
+        """Send G-code to the printer."""
+        url = "http{}://{}:{}/machine/code".format(
+            ssl, setting[CONF_HOST], setting[CONF_PORT]
+        )
+        headers = {"Content-Type": "text/plain"}
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                with async_timeout.timeout(10):
+                    response = await session.post(
+                        url, data=call.data["gcode"], headers=headers, ssl=False
+                    )
+                    response.raise_for_status()
+        except (asyncio.TimeoutError, aiohttp.ClientError) as error:
+            raise ConnectionError(
+                f"Error communicating with printer at {url}"
+            ) from error
+        else:
+            return await response.text()
+
+    hass.services.async_register(
+        DOMAIN,
+        f"{name}_send_gcode",
+        send_gcode,
+        schema=vol.Schema({vol.Required("gcode", msg="Missing GCode parameter"): str}),
+    )
+
     return success
 
 
@@ -376,7 +405,11 @@ async def get_value_from_json(json_dict, end_point, sensor_type, group, tool):
         else:
             return 0
     elif end_point == "job" and group == "duration":
-        return round((json_dict[end_point][group]) / 60, 2)
+        duration = json_dict[end_point][group]
+        if duration is not None:
+            return round((json_dict[end_point][group]) / 60, 2)
+        else:
+            return 0
     else:
         levels = group.split(".")
 
