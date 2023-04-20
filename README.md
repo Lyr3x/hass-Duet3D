@@ -61,3 +61,11 @@ Add the following to your Lovelace dashboard. Remember to update the entity name
       state: 'on'
   type: conditional
 ```
+
+There is also the possibility to send GCodes directly with a Home Assistant service:
+```yaml
+service: duet3d_printer.hevors_send_gcode
+data:
+  gcode: G28
+```
+Currently is not working to log the responsen from an e.g `M122`
