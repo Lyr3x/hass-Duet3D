@@ -62,6 +62,11 @@ SENSOR_TYPES = {
         "axes",
         "x,y,z",
         "mm,mm,mm",
-        "mdi:axis-x-arrow,mdi:axis-y-arrow,mdi:axis-z-arrow",
+        "mdi:axis-x-arrow",
     ],
+}
+
+BINARY_SENSOR_TYPES = {
+    # API Endpoint, Group, Key, unit
+    "Printing": ["job", "status", "printing", None],
 }

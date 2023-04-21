@@ -6,8 +6,6 @@ import requests
 import aiohttp
 from homeassistant.const import TEMP_CELSIUS
 from homeassistant.helpers.entity import Entity
-from homeassistant.core import callback
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -76,22 +74,6 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
                         )
                         devices.append(new_sensor)
         elif endpoint == "array":
-            # "Position": [
-            #     "array",
-            #     "coords.xyz",
-            #     "x,y,z",
-            #     "mm,mm,mm",
-            #     "mdi:format-vertical-align-top,mdi:format-vertical-align-top,mdi:format-vertical-align-top",
-            # ],
-            # api,
-            # condition,
-            # sensor_type,
-            # sensor_name,
-            # unit,
-            # endpoint,
-            # group,
-            # tool=None,
-            # icon=None,
             group = SENSOR_TYPES[duet3d_type][1]
             keys = SENSOR_TYPES[duet3d_type][2].split(",")
             units = SENSOR_TYPES[duet3d_type][3].split(",")

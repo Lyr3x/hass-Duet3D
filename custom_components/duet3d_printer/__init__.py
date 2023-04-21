@@ -31,6 +31,7 @@ from .const import (
     CONF_BED,
     DOMAIN,
     SENSOR_TYPES,
+    BINARY_SENSOR_TYPES
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -53,11 +54,6 @@ def ensure_valid_path(value):
         value += "/"
     return value
 
-
-BINARY_SENSOR_TYPES = {
-    # API Endpoint, Group, Key, unit
-    "Printing": ["job", "status", "printing", None],
-}
 
 SENSOR_SCHEMA = vol.Schema(
     {

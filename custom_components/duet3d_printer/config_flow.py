@@ -26,29 +26,11 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-
-# def _schema_with_defaults(
-#     host="", port=80, path="/machine/status", no_of_tools=1, has_bad=True
-# ):
-#     return vol.Schema(
-#         {
-#             vol.Required(CONF_HOST, default=host): str,
-#             vol.Required(CONF_PORT, default=port): cv.port,
-#             vol.Required(CONF_PATH, default=path): str,
-#             vol.Required(CONF_NUMBER_OF_TOOLS, default=no_of_tools): vol.Schema(
-#                 cv.positive_int
-#             ),
-#             vol.Optional(CONF_BED, default=has_bad): bool,
-#         },
-#         extra=vol.ALLOW_EXTRA,
-#     )
-
-
 def _schema_with_defaults(
     name=DEFAULT_NAME,
     host="192.168.2.116",
     port=80,
-    no_of_tools=1,
+    number_of_tools=1,
     has_bed=True,
 ):
     return vol.Schema(
@@ -56,7 +38,7 @@ def _schema_with_defaults(
             vol.Required(CONF_NAME, default=name): str,
             vol.Required(CONF_HOST, default=host): str,
             vol.Required(CONF_PORT, default=port): cv.port,
-            vol.Required(CONF_NUMBER_OF_TOOLS, default=no_of_tools): vol.Schema(
+            vol.Required(CONF_NUMBER_OF_TOOLS, default=number_of_tools): vol.Schema(
                 cv.positive_int
             ),
             vol.Optional(CONF_BED, default=has_bed): bool,
