@@ -9,27 +9,15 @@ import voluptuous as vol
 
 from homeassistant.core import HomeAssistant, ServiceCall
 
-from .const import (
-    ATTR_GCODE,
-    SERVICE_SEND_GCODE,
-    DOMAIN,
-    CONF_GCODE_PATH
-)
+from .const import ATTR_GCODE, SERVICE_SEND_GCODE, DOMAIN, CONF_GCODE_PATH, CONF_API
 
 _LOGGER = logging.getLogger(__name__)
 
 
-def async_register_services(hass: HomeAssistant) -> None:
-    _LOGGER.critical(hass)
+def async_register_services(hass, baseUrl: str) -> None:
     async def send_gcode(call: ServiceCall):
-        duet3d_printer_config = hass.data[DOMAIN]
-        for key, value in duet3d_printer_config.items():
-            if isinstance(value, dict):
-                host = value["host"]
-                port = value["port"]
-
         """Send G-code to the printer."""
-        url = "http://{}:{}/machine/{}".format(host, port, CONF_GCODE_PATH)
+        url = "{}{}{}".format(baseUrl, CONF_API, CONF_GCODE_PATH)
         headers = {"Content-Type": "text/plain"}
 
         try:

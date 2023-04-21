@@ -1,4 +1,7 @@
 """Constants for the Duet3D integration."""
+from homeassistant.const import (
+    TEMP_CELSIUS,
+)
 
 DOMAIN = "duet3d_printer"
 
@@ -22,3 +25,43 @@ MONITORED_CONDITIONS = [
     "Progress",
 ]
 
+SENSOR_TYPES = {
+    # API Endpoint, Group, Key, unit, icon
+    # Group, subgroup, key, unit, icon
+    "Temperatures": [
+        "heat",
+        "heaters",
+        "*",
+        TEMP_CELSIUS,
+        "mdi:thermometer",
+    ],
+    "Current State": [
+        "state",
+        "state.status",
+        "status",
+        None,
+        "mdi:printer-3d",
+    ],
+    "Time Remaining": [
+        "job",
+        "timesLeft",
+        "file",
+        "min",
+        "mdi:clock-end",
+    ],
+    "Time Elapsed": [
+        "job",
+        "duration",
+        "duration",
+        "min",
+        "mdi:clock-start",
+    ],
+    "Progress": ["job", "progress", "file.printTime", "%", "mdi:clock-end"],
+    "Position": [
+        "move",
+        "axes",
+        "x,y,z",
+        "mm,mm,mm",
+        "mdi:axis-x-arrow,mdi:axis-y-arrow,mdi:axis-z-arrow",
+    ],
+}

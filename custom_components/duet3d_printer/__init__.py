@@ -30,6 +30,7 @@ from .const import (
     CONF_API,
     CONF_BED,
     DOMAIN,
+    SENSOR_TYPES,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -52,47 +53,6 @@ def ensure_valid_path(value):
         value += "/"
     return value
 
-
-SENSOR_TYPES = {
-    # API Endpoint, Group, Key, unit, icon
-    # Group, subgroup, key, unit, icon
-    "Temperatures": [
-        "heat",
-        "heaters",
-        "*",
-        TEMP_CELSIUS,
-        "mdi:thermometer",
-    ],
-    "Current State": [
-        "state",
-        "state.status",
-        "status",
-        None,
-        "mdi:printer-3d",
-    ],
-    "Time Remaining": [
-        "job",
-        "timesLeft",
-        "file",
-        "min",
-        "mdi:clock-end",
-    ],
-    "Time Elapsed": [
-        "job",
-        "duration",
-        "duration",
-        "min",
-        "mdi:clock-start",
-    ],
-    "Progress": ["job", "progress", "file.printTime", "%", "mdi:clock-end"],
-    "Position": [
-        "move",
-        "axes",
-        "x,y,z",
-        "mm,mm,mm",
-        "mdi:axis-x-arrow,mdi:axis-y-arrow,mdi:axis-z-arrow",
-    ],
-}
 
 BINARY_SENSOR_TYPES = {
     # API Endpoint, Group, Key, unit
@@ -142,99 +102,6 @@ CONFIG_SCHEMA = vol.Schema(
     },
     extra=vol.ALLOW_EXTRA,
 )
-# async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-#     """Set up the Duet3D component."""
-#     if DOMAIN not in config:
-#         return True
-
-#     domain_config = config[DOMAIN]
-
-#     for conf in domain_config:
-#         hass.async_create_task(
-#             hass.config_entries.flow.async_init(
-#                 DOMAIN,
-#                 context={"source": SOURCE_IMPORT},
-#                 data={
-#                     CONF_HOST: conf[CONF_HOST],
-#                     CONF_PATH: conf[CONF_PATH],
-#                     CONF_PORT: conf[CONF_PORT]
-#                 },
-#             )
-#         )
-#     return True
-
-
-# async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-#     """Set up the Duet3D component from yaml configuration."""
-#     printers = hass.data.setdefault(DOMAIN, {})
-#     success = False
-
-#     if DOMAIN not in config:
-#         # Skip the setup if there is no configuration present
-#         _LOGGER.error("Domain is not in config. Skipping setup of integration")
-#         return True
-
-#     setting = config[DOMAIN]
-#     for setting in config[DOMAIN]:
-#         name = setting[CONF_NAME]
-#         ssl = "s" if setting.get(CONF_SSL, False) else ""
-#         api_url = "http{}://{}:{}{}".format(
-#             ssl, setting[CONF_HOST], setting[CONF_PORT], setting[CONF_PATH]
-#         )
-#         number_of_tools = setting[CONF_NUMBER_OF_TOOLS]
-#         bed = setting[CONF_BED]
-#         connect_url = "http{0}://{1}:{2}".format(
-#             ssl, setting[CONF_HOST], setting[CONF_PORT]
-#         )
-#         try:
-#             duet_api = Duet3DAPI(connect_url, api_url, bed, number_of_tools)
-#             printers[api_url] = duet_api
-#             await duet_api.get("status")
-#         except requests.exceptions.RequestException as conn_err:
-#             _LOGGER.error("Error setting up Duet API: %r", conn_err)
-
-#         sensors = setting[CONF_SENSORS][CONF_MONITORED_CONDITIONS]
-#         load_platform(
-#             hass,
-#             "sensor",
-#             DOMAIN,
-#             {"name": name, "base_url": api_url, "sensors": sensors},
-#             config,
-#         )
-#         b_sensors = setting[CONF_BINARY_SENSORS][CONF_MONITORED_CONDITIONS]
-#         load_platform(
-#             hass,
-#             "binary_sensor",
-#             DOMAIN,
-#             {"name": name, "base_url": api_url, "sensors": b_sensors},
-#             config,
-#         )
-#         success = True
-
-#         # register Duet3D API services
-#         hass.data[DOMAIN] = setting
-#         async_register_services(hass)
-
-#     return success
-
-
-# async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-#     """Set up Duet3D from a config entry."""
-#     _LOGGER.critical("Setup entries")
-#     hass.data.setdefault(DOMAIN, {})
-#     hass_data = dict(entry.data)
-#     # Registers update listener to update config entry when options are updated.
-#     unsub_options_update_listener = entry.add_update_listener(options_update_listener)
-#     # Store a reference to the unsubscribe function to cleanup if an entry is unloaded.
-#     hass_data["unsub_options_update_listener"] = unsub_options_update_listener
-#     hass.data[DOMAIN][entry.entry_id] = hass_data
-#     # Forward the setup to the sensor platform.
-#     hass.async_create_task(
-#         hass.config_entries.async_forward_entry_setup(entry, "sensor")
-#     )
-#     # register Duet3D API services
-#     async_register_services(hass)
-#     return True
 
 
 async def options_update_listener(
@@ -242,23 +109,6 @@ async def options_update_listener(
 ):
     """Handle options update."""
     await hass.config_entries.async_reload(config_entry.entry_id)
-
-
-# async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-#     """Unload a config entry."""
-#     unload_ok = all(
-#         await asyncio.gather(
-#             *[hass.config_entries.async_forward_entry_unload(entry, "sensor")]
-#         )
-#     )
-#     # Remove options_update_listener.
-#     hass.data[DOMAIN][entry.entry_id]["unsub_options_update_listener"]()
-#     hass.services.async_remove(DOMAIN, SERVICE_SEND_GCODE)
-#     # Remove config entry from domain.
-#     if unload_ok:
-#         hass.data[DOMAIN].pop(entry.entry_id)
-
-#     return unload_ok
 
 
 async def async_setup(hass, config):
@@ -269,7 +119,7 @@ async def async_setup(hass, config):
 async def async_setup_entry(hass: HomeAssistant, entry: config_entries.ConfigEntry):
     """Set up Duet3D component from a config entry."""
     printers = hass.data.setdefault(DOMAIN, {})
-    api_url = "http://{0}:{1}{2}{3}".format(
+    status_api_url = "http://{0}:{1}{2}{3}".format(
         entry.data[CONF_HOST], entry.data[CONF_PORT], CONF_API, CONF_STATUS_PATH
     )
     number_of_tools = entry.data[CONF_NUMBER_OF_TOOLS]
@@ -277,14 +127,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: config_entries.ConfigEnt
     connect_url = "http://{0}:{1}".format(entry.data[CONF_HOST], entry.data[CONF_PORT])
 
     try:
-        duet_api = Duet3DAPI(connect_url, api_url, bed, number_of_tools)
-        printers[api_url] = duet_api
+        duet_api = Duet3DAPI(connect_url, status_api_url, bed, number_of_tools)
+        printers[status_api_url] = duet_api
         await duet_api.get("status")
     except requests.exceptions.RequestException as conn_err:
         _LOGGER.error("Error setting up Duet API: %r", conn_err)
 
     # register Duet3D API services
-    async_register_services(hass)
+    async_register_services(hass, connect_url)
     hass.config_entries.async_setup_platforms(entry, PLATFORMS)
 
     return True
@@ -330,10 +180,10 @@ class Duet3DOptionsFlowHandler(config_entries.OptionsFlow):
 
 
 class Duet3DAPI:
-    def __init__(self, connect_url, api_url, bed, number_of_tools):
+    def __init__(self, connect_url, status_api_url, bed, number_of_tools):
         """Initialize Duet3D API and set headers needed later."""
         self.connect_url = connect_url
-        self.api_url = api_url
+        self.status_api_url = status_api_url
         self.headers = {"CONTENT_TYPE": "CONTENT_TYPE_JSON"}
         self.status_last_reading = [{}, None]
         self.status_available = False
@@ -366,7 +216,7 @@ class Duet3DAPI:
             if last_time is not None:
                 if now - last_time < 30.0:
                     return self.status_last_reading[0]
-        url = self.api_url
+        url = self.status_api_url
         _LOGGER.debug("URL: %s", url)
         try:
             async with async_timeout.timeout(10):

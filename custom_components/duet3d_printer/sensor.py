@@ -9,180 +9,22 @@ from homeassistant.helpers.entity import Entity
 from homeassistant.core import callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from . import DOMAIN as COMPONENT_DOMAIN, SENSOR_TYPES
-
 _LOGGER = logging.getLogger(__name__)
 
 NOTIFICATION_ID = "duet3d_notification"
 NOTIFICATION_TITLE = "Duet3d sensor setup error"
 
 from homeassistant.const import (
-    CONF_HOST,
     CONF_NAME,
-    CONF_PATH,
-    CONF_PORT,
-    CONF_MONITORED_CONDITIONS,
-    CONF_SENSORS,
-    CONF_BINARY_SENSORS,
-    CONF_SSL,
-    TEMP_CELSIUS,
-    Platform,
 )
-from .const import (
-    DEFAULT_NAME,
-    CONF_NUMBER_OF_TOOLS,
-    CONF_BED,
-    DOMAIN,
-    SERVICE_SEND_GCODE,
-    CONF_BASE_URL,
-    MONITORED_CONDITIONS,
-)
-
-# def setup_platform(hass, config, async_add_entities, discovery_info=None):
-#     """Set up the available Duet3D sensors."""
-#     if discovery_info is None:
-#         return
-
-#     name = discovery_info["name"]
-#     base_url = discovery_info["base_url"]
-#     monitored_conditions = discovery_info["sensors"]
-#     duet3d_api = hass.data[COMPONENT_DOMAIN][base_url]
-#     tools = duet3d_api.get_tools()
-
-#     if "Temperatures" in monitored_conditions:
-#         if not tools:
-#             hass.components.persistent_notification.create(
-#                 "Your printer appears to be offline.<br />"
-#                 "If you do not want to have your printer on <br />"
-#                 " at all times, and you would like to monitor <br /> "
-#                 "temperatures, please add <br />"
-#                 "bed and/or number&#95of&#95tools to your config <br />"
-#                 "and restart.",
-#                 title=NOTIFICATION_TITLE,
-#                 notification_id=NOTIFICATION_ID,
-#             )
-
-#     devices = []
-#     types = ["current", "active", "standby"]
-#     bed_types = ["current", "active"]
-
-#     for duet3d_type in monitored_conditions:
-#         endpoint = SENSOR_TYPES[duet3d_type][0]
-
-#         if duet3d_type == "Temperatures":
-#             for tool in tools:
-#                 if tool == "bed":
-#                     for temp_type in bed_types:
-#                         new_sensor = Duet3DSensor(
-#                             duet3d_api,
-#                             temp_type,
-#                             temp_type,
-#                             name,
-#                             SENSOR_TYPES[duet3d_type][3],
-#                             SENSOR_TYPES[duet3d_type][0],
-#                             SENSOR_TYPES[duet3d_type][1],
-#                             tool,
-#                         )
-#                         devices.append(new_sensor)
-#                 else:
-#                     for temp_type in types:
-#                         new_sensor = Duet3DSensor(
-#                             duet3d_api,
-#                             temp_type,
-#                             temp_type,
-#                             name,
-#                             SENSOR_TYPES[duet3d_type][3],
-#                             SENSOR_TYPES[duet3d_type][0],
-#                             SENSOR_TYPES[duet3d_type][1],
-#                             tool,
-#                         )
-#                         devices.append(new_sensor)
-#         elif endpoint == "array":
-#             # "Position": [
-#             #     "array",
-#             #     "coords.xyz",
-#             #     "x,y,z",
-#             #     "mm,mm,mm",
-#             #     "mdi:format-vertical-align-top,mdi:format-vertical-align-top,mdi:format-vertical-align-top",
-#             # ],
-#             # api,
-#             # condition,
-#             # sensor_type,
-#             # sensor_name,
-#             # unit,
-#             # endpoint,
-#             # group,
-#             # tool=None,
-#             # icon=None,
-#             group = SENSOR_TYPES[duet3d_type][1]
-#             keys = SENSOR_TYPES[duet3d_type][2].split(",")
-#             units = SENSOR_TYPES[duet3d_type][3].split(",")
-#             icons = SENSOR_TYPES[duet3d_type][4].split(",")
-#             index = 0
-
-#             for array_item in keys:
-#                 new_sensor = Duet3DSensor(
-#                     duet3d_api,
-#                     duet3d_type,
-#                     array_item,
-#                     f"{name} {array_item.upper()}",
-#                     units[index],
-#                     endpoint,
-#                     group,
-#                     f"{index}",
-#                     icons[index],
-#                 )
-#                 devices.append(new_sensor)
-#                 index += 1
-
-#             # new_sensor = Duet3DSensor(
-#             #     duet3d_api,
-#             #     duet3d_type,
-#             #     "y",
-#             #     f"{name} Y",
-#             #     SENSOR_TYPES[duet3d_type][3],
-#             #     SENSOR_TYPES[duet3d_type][0],
-#             #     SENSOR_TYPES[duet3d_type][1],
-#             #     "1",
-#             #     SENSOR_TYPES[duet3d_type][4],
-#             # )
-#             # devices.append(new_sensor)
-
-#             # new_sensor = Duet3DSensor(
-#             #     duet3d_api,
-#             #     duet3d_type,
-#             #     "z",
-#             #     f"{name} Z",
-#             #     SENSOR_TYPES[duet3d_type][3],
-#             #     SENSOR_TYPES[duet3d_type][0],
-#             #     SENSOR_TYPES[duet3d_type][1],
-#             #     "2",
-#             #     SENSOR_TYPES[duet3d_type][4],
-#             # )
-#             # devices.append(new_sensor)
-#         else:
-#             new_sensor = Duet3DSensor(
-#                 duet3d_api,
-#                 duet3d_type,
-#                 SENSOR_TYPES[duet3d_type][2],
-#                 name,
-#                 SENSOR_TYPES[duet3d_type][3],
-#                 SENSOR_TYPES[duet3d_type][0],
-#                 SENSOR_TYPES[duet3d_type][1],
-#                 None,
-#                 SENSOR_TYPES[duet3d_type][4],
-#             )
-#             devices.append(new_sensor)
-#     async_add_entities(devices, True)
+from .const import DOMAIN, SENSOR_TYPES, CONF_MONITORED_CONDITIONS
 
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
     """Set up the available Duet3D sensors."""
-    _LOGGER.critical(config_entry.data)
     name = config_entry.data[CONF_NAME]
-    base_url = config_entry.data[CONF_BASE_URL]
     monitored_conditions = config_entry.data[CONF_MONITORED_CONDITIONS]
-    duet3d_api = hass.data[COMPONENT_DOMAIN][base_url]
+    duet3d_api = list(hass.data[DOMAIN].values())[0]
     tools = duet3d_api.get_tools()
 
     if "Temperatures" in monitored_conditions:
