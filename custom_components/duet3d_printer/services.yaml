@@ -1,0 +1,10 @@
+send_gcode:
+  name: Send GCodes to Duet
+  description: Send any GCode to the Duet3D DSF API
+  fields:
+    gcode:
+      name: GCode
+      description: The G-code to send to the printer.
+      example: "G28"
+      selector:
+        text: {}

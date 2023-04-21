@@ -13,6 +13,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.util import slugify as util_slugify
 from homeassistant.helpers.discovery import load_platform
+from .services import async_register_services
 from homeassistant.const import (
     CONF_HOST,
     CONF_NAME,
@@ -30,6 +31,7 @@ from .const import (
     CONF_NUMBER_OF_TOOLS,
     CONF_BED,
     DOMAIN,
+    SERVICE_SEND_GCODE,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -214,34 +216,6 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         )
         success = True
 
-    async def send_gcode(call):
-        """Send G-code to the printer."""
-        url = "http{}://{}:{}/machine/code".format(
-            ssl, setting[CONF_HOST], setting[CONF_PORT]
-        )
-        headers = {"Content-Type": "text/plain"}
-
-        try:
-            async with aiohttp.ClientSession() as session:
-                with async_timeout.timeout(10):
-                    response = await session.post(
-                        url, data=call.data["gcode"], headers=headers, ssl=False
-                    )
-                    response.raise_for_status()
-        except (asyncio.TimeoutError, aiohttp.ClientError) as error:
-            raise ConnectionError(
-                f"Error communicating with printer at {url}"
-            ) from error
-        else:
-            return await response.text()
-
-    hass.services.async_register(
-        DOMAIN,
-        f"{name}_send_gcode",
-        send_gcode,
-        schema=vol.Schema({vol.Required("gcode", msg="Missing GCode parameter"): str}),
-    )
-
     return success
 
 
@@ -255,11 +229,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Store a reference to the unsubscribe function to cleanup if an entry is unloaded.
     hass_data["unsub_options_update_listener"] = unsub_options_update_listener
     hass.data[DOMAIN][entry.entry_id] = hass_data
-    _LOGGER.critical(entry)
     # Forward the setup to the sensor platform.
     hass.async_create_task(
         hass.config_entries.async_forward_entry_setup(entry, "sensor")
     )
+    # register Duet3D API services
+    async_register_services(hass)
     return True
 
 
@@ -277,7 +252,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
     # Remove options_update_listener.
     hass.data[DOMAIN][entry.entry_id]["unsub_options_update_listener"]()
-
+    hass.services.async_remove(DOMAIN, SERVICE_SEND_GCODE)
     # Remove config entry from domain.
     if unload_ok:
         hass.data[DOMAIN].pop(entry.entry_id)
@@ -409,7 +384,7 @@ async def get_value_from_json(json_dict, end_point, sensor_type, group, tool):
         if duration is not None:
             return round((json_dict[end_point][group]) / 60, 2)
         else:
-            return 0
+            return
     else:
         levels = group.split(".")
 
