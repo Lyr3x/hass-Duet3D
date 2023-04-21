@@ -5,8 +5,8 @@ Code Based on the OctoPrint integration from Hass: [octoprint integration github
 This is a work in progress. Entities are created properly and values can be read from the `/machine/status` endpoint of your Duet board. The integration is meant to use with RRF 3.4.5 and onwards and is also compatible with the SBC mode.
 
 # Known Issues
-* Config flow not yet working -> Please use the `yaml` configuration 
-* Printing sensor not working -> Will be fixed soon
+* Printing binary sensor not working
+* Entities are not attached to a Device
 
 ## Installation
 
@@ -24,24 +24,7 @@ This is a work in progress. Entities are created properly and values can be read
 3. Restart your Home Assistant.
 
 ### Config
-Add the following config to the `/config/configuration.yaml` file:
-
-```yaml
-# Duet Integration
-duet3d_printer:
-  host: !secret duet3d-host # 192.168.1.1
-  name: !secret duet3d-name
-  number_of_tools: 1
-  bed: true
-  sensors:
-    monitored_conditions:
-      - 'Current State'
-      - 'Temperatures'
-      - 'Progress'
-      - 'Time Elapsed'
-      - 'Time Remaining'
-      - 'Position'
-```
+Add the Duet3D Printer integration via the UI. 
 
 Add the following to your Lovelace dashboard. Remember to update the entity names with those of your own printer (defined by the value of `duet3d-name`)
 ```yaml
