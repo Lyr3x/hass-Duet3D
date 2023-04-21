@@ -230,9 +230,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass_data["unsub_options_update_listener"] = unsub_options_update_listener
     hass.data[DOMAIN][entry.entry_id] = hass_data
     # Forward the setup to the sensor platform.
-    hass.async_create_task(
-        hass.config_entries.async_forward_entry_setup(entry, "sensor")
-    )
+    # hass.async_create_task(
+    #     hass.config_entries.async_forward_entry_setup(entry, "sensor")
+    # )
     # register Duet3D API services
     async_register_services(hass)
     return True
@@ -300,7 +300,7 @@ class Duet3DAPI:
         url = self.api_url
         _LOGGER.debug("URL: %s", url)
         try:
-            async with async_timeout.timeout(9):
+            async with async_timeout.timeout(10):
                 async with aiohttp.ClientSession() as session:
                     async with session.get(url, headers=self.headers) as response:
                         response.raise_for_status()
