@@ -8,30 +8,40 @@ import homeassistant.helpers.config_validation as cv
 from homeassistant.const import (
     CONF_HOST,
     CONF_PORT,
-    CONF_PATH,
 )
 
 from .const import (
     CONF_NUMBER_OF_TOOLS,
     CONF_BED,
+    CONF_MONITORED_CONDITIONS,
     DOMAIN,
+    MONITORED_CONDITIONS,
+    CONF_NAME,
+    DEFAULT_NAME,
+    CONF_API,
+    CONF_GCODE_PATH,
+    CONF_STATUS_PATH,
+    CONF_BASE_URL,
 )
 
 _LOGGER = logging.getLogger(__name__)
 
-
 def _schema_with_defaults(
-    host="", port=80, path="/machine/status", no_of_tools=1, has_bad=True
+    name=DEFAULT_NAME,
+    host="192.168.2.116",
+    port=80,
+    number_of_tools=1,
+    has_bed=True,
 ):
     return vol.Schema(
         {
+            vol.Required(CONF_NAME, default=name): str,
             vol.Required(CONF_HOST, default=host): str,
             vol.Required(CONF_PORT, default=port): cv.port,
-            vol.Required(CONF_PATH, default=path): str,
-            vol.Required(CONF_NUMBER_OF_TOOLS, default=no_of_tools): vol.Schema(
+            vol.Required(CONF_NUMBER_OF_TOOLS, default=number_of_tools): vol.Schema(
                 cv.positive_int
             ),
-            vol.Optional(CONF_BED, default=has_bad): bool,
+            vol.Optional(CONF_BED, default=has_bed): bool,
         },
         extra=vol.ALLOW_EXTRA,
     )
@@ -41,27 +51,39 @@ class Duet3dConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Config flow for Duet3DPrinter."""
 
     VERSION = 1
-    _LOGGER.critical("Entering config flow")
-
-    def __init__(self) -> None:
-        """Handle a config flow for OctoPrint."""
-        self.discovery_schema = None
-        self._user_input = None
+    _LOGGER.debug("Entering config flow")
 
     async def async_step_user(self, user_input=None):
-        """Handle the initial step."""
-        # When coming back from the progress steps, the user_input is stored in the
-        # instance variable instead of being passed in
-        if user_input is None and self._user_input:
-            user_input = self._user_input
+        errors = {}
+        if user_input is not None:
+            await self.async_set_unique_id(user_input[CONF_HOST])
+            self._abort_if_unique_id_configured()
+            return self.async_create_entry(
+                title=user_input[CONF_HOST],
+                data={
+                    CONF_NAME: user_input[CONF_NAME],
+                    CONF_HOST: user_input[CONF_HOST],
+                    CONF_PORT: user_input[CONF_PORT],
+                    CONF_NUMBER_OF_TOOLS: user_input[CONF_NUMBER_OF_TOOLS],
+                    CONF_BED: user_input[CONF_BED],
+                    CONF_MONITORED_CONDITIONS: MONITORED_CONDITIONS,
+                    CONF_BASE_URL: "http://{0}:{1}{2}".format(
+                        CONF_HOST, CONF_PORT, CONF_API
+                    ),
+                    CONF_STATUS_PATH: CONF_STATUS_PATH,
+                    CONF_GCODE_PATH: CONF_GCODE_PATH,
+                },
+            )
 
-        if user_input is None:
-            data = self.discovery_schema or _schema_with_defaults()
-            return self.async_show_form(step_id="user", data_schema=data)
+        return self.async_show_form(
+            step_id="user",
+            data_schema=_schema_with_defaults(),
+            errors=errors,
+        )
 
     async def _finish_config(self, user_input: dict):
         """Finish the configuration setup."""
-        existing_entry = await self.async_set_unique_id(self.unique_id)
+        existing_entry = await self.async_set_unique_id(user_input[CONF_HOST])
         if existing_entry is not None:
             self.hass.config_entries.async_update_entry(existing_entry, data=user_input)
             # Reload the config entry otherwise devices will remain unavailable

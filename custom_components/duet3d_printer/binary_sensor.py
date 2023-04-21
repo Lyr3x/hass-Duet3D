@@ -5,35 +5,32 @@ import requests
 import aiohttp
 from homeassistant.components.binary_sensor import BinarySensorEntity
 
-from . import BINARY_SENSOR_TYPES, DOMAIN as COMPONENT_DOMAIN
+from homeassistant.const import (
+    CONF_NAME,
+)
+
+from .const import DOMAIN, BINARY_SENSOR_TYPES, SENSOR_TYPES
 
 _LOGGER = logging.getLogger(__name__)
 
 
-def setup_platform(hass, config, add_entities, discovery_info=None):
+async def async_setup_entry(hass, config_entry, async_add_entities):
     """Set up the available Duet3D binary sensors."""
-    if discovery_info is None:
-        return
-
-    name = discovery_info["name"]
-    base_url = discovery_info["base_url"]
-    monitored_conditions = discovery_info["sensors"]
-    duet3d_api = hass.data[COMPONENT_DOMAIN][base_url]
-
-    devices = []
-    for duet3d_type in monitored_conditions:
-        new_sensor = Duet3DBinarySensor(
-            duet3d_api,
-            duet3d_type,
-            BINARY_SENSOR_TYPES[duet3d_type][2],
-            name,
-            BINARY_SENSOR_TYPES[duet3d_type][3],
-            BINARY_SENSOR_TYPES[duet3d_type][0],
-            BINARY_SENSOR_TYPES[duet3d_type][1],
-            "flags",
-        )
-        devices.append(new_sensor)
-    add_entities(devices, True)
+    name = config_entry.data[CONF_NAME]
+    duet3d_api = list(hass.data[DOMAIN].values())[0]
+    current_state_type = SENSOR_TYPES["Current State"]
+    printing_type = BINARY_SENSOR_TYPES["Printing"]
+    device = Duet3DBinarySensor(
+        duet3d_api,
+        current_state_type[2],  # key
+        printing_type[2],  # name of the binary sensor
+        name,
+        printing_type[3],  # unit
+        printing_type[0],  # group
+        printing_type[1],  # endpoint
+        "flags",
+    )
+    async_add_entities([device], True)
 
 
 class Duet3DBinarySensor(BinarySensorEntity):
@@ -69,7 +66,6 @@ class Duet3DBinarySensor(BinarySensorEntity):
             return 1
         else:
             return 0
-        # return bool(self._state)
 
     @property
     def device_class(self):
