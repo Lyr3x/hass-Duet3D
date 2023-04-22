@@ -31,7 +31,7 @@ from .const import (
     CONF_BED,
     DOMAIN,
     SENSOR_TYPES,
-    BINARY_SENSOR_TYPES
+    BINARY_SENSOR_TYPES,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -131,7 +131,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: config_entries.ConfigEnt
 
     # register Duet3D API services
     async_register_services(hass, connect_url)
-    hass.config_entries.async_setup_platforms(entry, PLATFORMS)
+
+    # forward entry setup to platforms
+    for platform in PLATFORMS:
+        hass.async_create_task(
+            hass.config_entries.async_forward_entry_setup(entry, platform)
+        )
 
     return True
 
