@@ -3,9 +3,10 @@
 import logging
 
 import requests
-import aiohttp
 from homeassistant.const import TEMP_CELSIUS
 from homeassistant.helpers.entity import Entity
+from homeassistant.helpers import device_registry as dr
+
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -41,6 +42,8 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     devices = []
     types = ["current", "active", "standby"]
     bed_types = ["current", "active"]
+
+    register_device(hass, config_entry)
 
     for duet3d_type in monitored_conditions:
         endpoint = SENSOR_TYPES[duet3d_type][0]
@@ -109,6 +112,18 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
             )
             devices.append(new_sensor)
     async_add_entities(devices, True)
+
+
+def register_device(hass, config_entry):
+    device_registry = dr.async_get(hass)
+    _LOGGER.critical(config_entry.data)
+    device_registry.async_get_or_create(
+        config_entry_id=config_entry.entry_id,
+        identifiers={(DOMAIN, config_entry.unique_id)},
+        manufacturer="Duet3D",
+        suggested_area="Office",
+        name=config_entry.data[CONF_NAME],
+    )
 
 
 class Duet3DSensor(Entity):
