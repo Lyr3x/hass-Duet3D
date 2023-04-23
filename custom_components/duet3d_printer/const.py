@@ -9,6 +9,7 @@ DEFAULT_NAME = "Duet3D"
 CONF_NAME = "name"
 CONF_NUMBER_OF_TOOLS = "number_of_tools"
 CONF_BED = "bed"
+CONF_LIGHT = "light"
 ATTR_GCODE = "gcode"
 CONF_API = "/machine"
 CONF_STATUS_PATH = "/status"
@@ -68,5 +69,19 @@ SENSOR_TYPES = {
 
 BINARY_SENSOR_TYPES = {
     # API Endpoint, Group, Key, unit
-    "Printing": ["job", "status", "printing", None],
+    "Printing": ["state", "state.status", "status", None, None],
 }
+
+PRINTER_STATUS_DICT = {
+            "S": "Stopped",
+            "M": "Simulating",
+            "P": "Printing",
+            "I": "Idle",
+            "C": "Configuring",
+            "B": "Busy",
+            "D": "Decelerating",
+            "R": "Resuming",
+            "H": "Halted",
+            "F": "Flashing Firmware",
+            "T": "Changing Tool",
+        }
