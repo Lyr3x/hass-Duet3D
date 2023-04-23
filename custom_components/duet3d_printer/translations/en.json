@@ -8,7 +8,9 @@
           "port": "Port",
           "name": "Name",
           "number_of_tools": "Number of Tools",
-          "bed": "Has Bed"
+          "bed": "Hotbed installed?",
+          "light": "LED's installed?",
+          "ssl": "Use SSL?"
         }
       }
     },
