@@ -9,8 +9,9 @@
   "documentation": "https://github.com/Lyr3x/hass-Duet3D",
   "homekit": {},
   "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/Lyr3x/hass-Duet3D/issues",
   "requirements": [],
   "ssdp": [],
-  "version": "v0.1.0",
+  "version": "v0.0.1",
   "zeroconf": []
 }
