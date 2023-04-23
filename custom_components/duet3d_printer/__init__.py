@@ -140,7 +140,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
 
     # register Duet3D API services
     async_register_services(hass, coordinator.base_url)
-
+    
     await hass.config_entries.async_forward_entry_setups(config_entry, PLATFORMS)
 
     return True
