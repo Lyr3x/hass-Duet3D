@@ -1,10 +1,6 @@
 """Support for monitoring Duet3D sensors."""
-# TODO: add tool and bed status, need moar sensors!
 import logging
 
-import requests
-import aiohttp
-from homeassistant.const import TEMP_CELSIUS
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
@@ -14,7 +10,10 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import PERCENTAGE, UnitOfTemperature
+from homeassistant.const import (
+    PERCENTAGE,
+    UnitOfTemperature
+)
 
 from . import DuetDataUpdateCoordinator
 
@@ -76,6 +75,7 @@ async def async_setup_entry(
                         new_tools.append(
                             DuetTemperatureSensor(
                                 coordinator,
+                                f"{name} Tool {tool} {bed_type} temperature",
                                 tool,
                                 bed_type,
                                 device_id,
@@ -89,6 +89,7 @@ async def async_setup_entry(
                         new_tools.append(
                             DuetTemperatureSensor(
                                 coordinator,
+                                f"{name} Tool {tool} {tool_type} temperature",
                                 tool,
                                 tool_type,
                                 device_id,
@@ -100,51 +101,12 @@ async def async_setup_entry(
 
     if coordinator.data["status"]:
         async_add_tool_sensors()
-    # for condition in monitored_conditions:
-    #     endpoint = SENSOR_TYPES[condition][0]
-    #     if endpoint == "array":
-    #         group = SENSOR_TYPES[condition][1]
-    #         keys = SENSOR_TYPES[condition][2].split(",")
-    #         units = SENSOR_TYPES[condition][3].split(",")
-    #         icons = SENSOR_TYPES[condition][4].split(",")
-    #         index = 0
-
-    #         for array_item in keys:
-    #             new_sensor = Duet3DSensor(
-    #                 coordinator,
-    #                 device_id,
-    #                 condition,
-    #                 name,
-    #                 array_item,
-    #                 f"{name} {array_item.upper()}",
-    #                 units[index],
-    #                 endpoint,
-    #                 group,
-    #                 f"{index}",
-    #                 icons[index],
-    #             )
-    #             devices.append(new_sensor)
-    #             index += 1
-
-    #     else:
-    #         new_sensor = Duet3DSensor(
-    #             coordinator,
-    #             device_id,
-    #             condition,
-    #             name,
-    #             SENSOR_TYPES[condition][2],
-    #             f"{name} {condition}",
-    #             SENSOR_TYPES[condition][3],
-    #             SENSOR_TYPES[condition][0],
-    #             SENSOR_TYPES[condition][1],
-    #             None,
-    #             SENSOR_TYPES[condition][4],
-    #         )
-    #         devices.append(new_sensor)
-    # async_add_entities(devices, True)
 
     entities: list[SensorEntity] = [
-        DuetPrintJobPercentageSensor(coordinator, "Progress", device_id),
+        DuetPrintJobPercentageSensor(coordinator, f"{name} Progress", device_id),
+        DuetTimeRemainingSensor(coordinator, f"{name} Time Remaining", device_id),
+        DuetPrintDurationSensor(coordinator, f"{name} Time Elapsed", device_id),
+        DuetPrintPositionSensor(coordinator, f"{name} Position (X,Y,Z)", device_id),
     ]
     async_add_entities(entities)
 
@@ -180,6 +142,7 @@ class DuetTemperatureSensor(DuetPrintSensorBase):
     def __init__(
         self,
         coordinator: DuetDataUpdateCoordinator,
+        sensor_name: str,
         tool: str,
         sensor_type: str,
         device_id: str,
@@ -187,7 +150,7 @@ class DuetTemperatureSensor(DuetPrintSensorBase):
         """Initialize a new Duet sensor."""
         super().__init__(
             coordinator,
-            f"Tool {tool} {sensor_type} temperature",
+            sensor_name,
             f"{tool}-{sensor_type}-{device_id}",
         )
         self._sensor_type = sensor_type
@@ -205,7 +168,6 @@ class DuetTemperatureSensor(DuetPrintSensorBase):
         else:
             tool_heater = json_dict["heat"]["heaters"][1][self._sensor_type]
             return tool_heater
-        return None
 
     @property
     def available(self) -> bool:
@@ -214,7 +176,7 @@ class DuetTemperatureSensor(DuetPrintSensorBase):
 
 
 class DuetPrintJobPercentageSensor(DuetPrintSensorBase):
-    """Representation of an OctoPrint sensor."""
+    """Representation of an Duet3D sensor."""
 
     _attr_native_unit_of_measurement = PERCENTAGE
     _attr_icon = "mdi:file-percent"
@@ -222,116 +184,115 @@ class DuetPrintJobPercentageSensor(DuetPrintSensorBase):
     def __init__(
         self, coordinator: DuetDataUpdateCoordinator, sensor_name: str, device_id: str
     ) -> None:
-        """Initialize a new OctoPrint sensor."""
+        """Initialize a new Duet3D sensor."""
         super().__init__(
             coordinator,
             sensor_name,
-            device_id,
+            f"{sensor_name}-{device_id}",
         )
 
     @property
     def native_value(self):
         """Return sensor state."""
         json_dict = self.coordinator.data["status"]
-        job_total_num_of_layers = json_dict["job"]["layer"]
-        job_printed_num_of_layers = json_dict["job"]["file"]["numLayers"]
-        if (
-            job_total_num_of_layers is not None
-            and job_printed_num_of_layers is not None
-        ):
+        job_printed_filament = json_dict["job"]["rawExtrusion"]
+        job_total_mm_of_filament = json_dict["job"]["file"]["filament"][0]
+        if job_printed_filament is not None and job_total_mm_of_filament is not None:
             progress_percentage = (
-                job_total_num_of_layers / job_printed_num_of_layers
+                job_printed_filament / job_total_mm_of_filament
             ) * 100
-            _LOGGER.critical(progress_percentage)
             return round(progress_percentage, 2)
         else:
             return 0
 
 
-class Duet3DSensor(DuetPrintSensorBase):
+class DuetTimeRemainingSensor(DuetPrintSensorBase):
     """Representation of an Duet3D sensor."""
+
+    _attr_native_unit_of_measurement = "min"
+    # _attr_device_class = SensorDeviceClass.DURATION
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_icon = "mdi:clock-end"
+
+    def __init__(
+        self, coordinator: DuetDataUpdateCoordinator, sensor_name: str, device_id: str
+    ) -> None:
+        """Initialize a new Duet3D sensor."""
+        super().__init__(
+            coordinator,
+            sensor_name,
+            f"{sensor_name}-{device_id}",
+        )
+
+    @property
+    def native_value(self):
+        """Return sensor state."""
+        json_dict = self.coordinator.data["status"]
+        printFileTimeLeft = json_dict["job"]["timesLeft"]["file"]
+        if printFileTimeLeft is not None:
+            return round(printFileTimeLeft / 60.0, 2)
+        else:
+            return 0
+
+
+class DuetPrintDurationSensor(DuetPrintSensorBase):
+    """Representation of an Duet3D sensor."""
+
+    _attr_native_unit_of_measurement = "min"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    _attr_icon = "mdi:clock-start"
+
+    def __init__(
+        self, coordinator: DuetDataUpdateCoordinator, sensor_name: str, device_id: str
+    ) -> None:
+        """Initialize a new Duet3D sensor."""
+        super().__init__(
+            coordinator,
+            sensor_name,
+            f"{sensor_name}-{device_id}",
+        )
+
+    @property
+    def native_value(self):
+        """Return sensor state."""
+        json_dict = self.coordinator.data["status"]
+        jobDuration = json_dict["job"]["duration"]
+        if jobDuration is not None:
+            return round(jobDuration / 60.0, 2)
+        else:
+            return 0
+
+
+class DuetPrintPositionSensor(DuetPrintSensorBase):
+    """Representation of an Duet3D sensor."""
+
+    # _attr_native_unit_of_measurement = ""
+    # _attr_device_class = SensorDeviceClass.DISTANCE
+    _attr_icon = "mdi:axis-x-arrow"
 
     def __init__(
         self,
         coordinator: DuetDataUpdateCoordinator,
+        sensor_name: str,
         device_id: str,
-        name: str,
-        condition,
-        sensor_type,
-        sensor_name,
-        unit,
-        endpoint,
-        group,
-        tool=None,
-        icon=None,
     ) -> None:
         """Initialize a new Duet3D sensor."""
         super().__init__(
-            coordinator, sensor_type, f"{sensor_name}-{condition}", device_id
+            coordinator,
+            sensor_name,
+            f"{sensor_name}-{device_id}",
         )
-        self.sensor_name = sensor_name
-        self.sensor_type = sensor_type
-        self.coordinator = coordinator
-        self._state = None
-        self._unit_of_measurement = unit
-        self.api_endpoint = endpoint
-        self.api_group = group
-        self.api_tool = tool
-        self._icon = icon
-        self._available = False
-        _LOGGER.debug("Created Duet3D sensor %r", self)
 
     @property
-    def name(self):
-        """Return the name of the sensor."""
-        return self.sensor_name
-
-    @property
-    def state(self):
-        """Return the state of the sensor."""
-        sensor_unit = self.unit_of_measurement
-        if self._state in PRINTER_STATUS_DICT:
-            self._state = PRINTER_STATUS_DICT[self._state]
-
-        if sensor_unit in (TEMP_CELSIUS, "%"):
-            # API sometimes returns null and not 0
-            if self._state is None:
-                self._state = 0
-            return round(float(self._state), 2)
-        return self._state
-
-    @property
-    def unit_of_measurement(self):
-        """Return the unit of measurement of this entity, if any."""
-        return self._unit_of_measurement
-
-    async def async_update(self):
-        """Update state of sensor."""
-        try:
-            data = await self.coordinator._async_update_data()
-            if data is not None:
-                self._available = True
-                self._state = self.coordinator.get_value_from_json(
-                    data["status"],
-                    self.api_endpoint,
-                    self.sensor_type,
-                    self.api_group,
-                    self.api_tool,
-                )
-                _LOGGER.critical(self._state)
-                return self._state
-            else:
-                _LOGGER.warning("Received no data from coordinator")
-        except requests.exceptions.ConnectionError:
-            _LOGGER.error("Could not update sensor")
-            self._available = False
-        return
-
-    @property
-    def icon(self):
-        """Icon to use in the frontend."""
-        return self._icon
-
-    @property
-    def available(self):
-        return self._available
+    def native_value(self):
+        """Return sensor state."""
+        axes = ["X", "Y", "Z"]
+        json_dict = self.coordinator.data["status"]
+        axis_json = json_dict["move"]["axes"]
+        positions = [
+            axis_json[i]["machinePosition"]
+            for i in range(len(axis_json))
+            if axis_json[i]["letter"] in axes
+        ]
+        return str(positions)

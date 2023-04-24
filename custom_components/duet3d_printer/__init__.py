@@ -293,46 +293,8 @@ class DuetDataUpdateCoordinator(DataUpdateCoordinator):
 
     def get_value_from_json(self, json_dict, end_point, sensor_type, group, tool):
         """Return the value for sensor_type from the JSON."""
-        if end_point == "move":
-            axis_json = json_dict[end_point][group]
-            axes = ["X", "Y", "Z"]
-            positions = [
-                axis_json[i]["machinePosition"]
-                for i in range(len(axis_json))
-                if axis_json[i]["letter"] in axes
-            ]
-            return str(positions)
-        elif end_point == "job" and group == "timesLeft":
-            printTimeLeft = json_dict[end_point][group]["file"]
-            if printTimeLeft is not None:
-                return round(printTimeLeft / 60.0, 2)
-            else:
-                return 0
-        elif end_point == "job" and group == "duration":
-            duration = json_dict[end_point][group]
-            if duration is not None:
-                return round((json_dict[end_point][group]) / 60, 2)
-            else:
-                return
-        elif end_point == "boards":
+        if end_point == "boards":
             if group == "firmwareVersion":
                 return json_dict[end_point][0]["firmwareVersion"]
             if group == "model":
                 return json_dict[end_point][0]["shortName"]
-        else:
-            levels = group.split(".")
-
-            for level in levels:
-                _LOGGER.debug(
-                    "Updating API Duet3D sensor: get_value_from_json, array, %s, %r",
-                    level,
-                    json_dict,
-                )
-                if level not in json_dict:
-                    return 0
-                json_dict = json_dict[level]
-
-            if end_point == "array":
-                return json_dict[int(tool)]
-            else:
-                return json_dict
