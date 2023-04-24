@@ -7,6 +7,7 @@
           "host": "Host",
           "port": "Port",
           "name": "Name",
+          "update_interval": "Update interval",
           "number_of_tools": "Number of Tools",
           "bed": "Hotbed installed?",
           "light": "LED's installed?",

@@ -24,6 +24,7 @@ from .const import (
     CONF_STATUS_PATH,
     CONF_BASE_URL,
     CONF_LIGHT,
+    CONF_INTERVAL,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -34,6 +35,7 @@ def _schema_with_defaults(
     ssl=False,
     host="192.168.2.116",
     port=80,
+    update_interval=30,
     number_of_tools=1,
     has_bed=True,
     has_light=False,
@@ -44,6 +46,7 @@ def _schema_with_defaults(
             vol.Required(CONF_SSL, default=ssl): bool,
             vol.Required(CONF_HOST, default=host): str,
             vol.Required(CONF_PORT, default=port): cv.port,
+            vol.Required(CONF_INTERVAL, default=update_interval): int,
             vol.Required(CONF_NUMBER_OF_TOOLS, default=number_of_tools): vol.Schema(
                 cv.positive_int
             ),
@@ -70,6 +73,7 @@ class Duet3dConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     CONF_HOST: user_input[CONF_HOST],
                     CONF_PORT: user_input[CONF_PORT],
                     CONF_SSL: user_input[CONF_SSL],
+                    CONF_INTERVAL: user_input[CONF_INTERVAL],
                     CONF_NUMBER_OF_TOOLS: user_input[CONF_NUMBER_OF_TOOLS],
                     CONF_BED: user_input[CONF_BED],
                     CONF_LIGHT: user_input[CONF_LIGHT],

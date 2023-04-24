@@ -17,6 +17,7 @@ CONF_GCODE_PATH = "/code"
 CONF_BASE_URL = "base_url"
 SERVICE_SEND_GCODE = "send_code"
 CONF_MONITORED_CONDITIONS = "monitored_conditions"
+CONF_INTERVAL = "update_interval"
 MONITORED_CONDITIONS = [
     "Current State",
     "Temperatures",

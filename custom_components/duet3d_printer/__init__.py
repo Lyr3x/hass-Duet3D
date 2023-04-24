@@ -42,6 +42,7 @@ from .const import (
     SENSOR_TYPES,
     BINARY_SENSOR_TYPES,
     CONF_LIGHT,
+    CONF_INTERVAL,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -127,7 +128,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
         hass.data[DOMAIN] = {}
 
     try:
-        coordinator = DuetDataUpdateCoordinator(hass, config_entry, 5)
+        coordinator = DuetDataUpdateCoordinator(hass, config_entry, config_entry.data[CONF_INTERVAL])
         coordinator.data["status"] = await coordinator.get_status()
         coordinator.firmware_version = coordinator.get_value_from_json(
             coordinator.data["status"], "boards", "software", "firmwareVersion", None
