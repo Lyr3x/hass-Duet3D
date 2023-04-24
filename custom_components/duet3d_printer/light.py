@@ -4,7 +4,6 @@ import voluptuous as vol
 
 from homeassistant.components.light import (
     ATTR_BRIGHTNESS,
-    ATTR_RGB_COLOR,
     PLATFORM_SCHEMA,
     LightEntity,
     SUPPORT_COLOR,
@@ -18,7 +17,7 @@ import colorsys
 
 from . import DuetDataUpdateCoordinator
 
-from .const import CONF_NAME, ATTR_GCODE, DOMAIN, SERVICE_SEND_GCODE
+from .const import CONF_NAME, ATTR_GCODE, DOMAIN, SERVICE_SEND_GCODE, CONF_LIGHT
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -37,12 +36,14 @@ async def async_setup_entry(
 ):
     """Set up the Duet3D light platform."""
     name = config_entry.data[CONF_NAME]
-    coordinator: DuetDataUpdateCoordinator = hass.data[DOMAIN][config_entry.entry_id][
-        "coordinator"
-    ]
-    device_id = config_entry.entry_id
-    assert device_id is not None
-    async_add_entities([Duet3DLight(coordinator, device_id, f"{name} LED")], True)
+    lightIncluded = config_entry.data[CONF_LIGHT]
+    if lightIncluded:
+        coordinator: DuetDataUpdateCoordinator = hass.data[DOMAIN][
+            config_entry.entry_id
+        ]["coordinator"]
+        device_id = config_entry.entry_id
+        assert device_id is not None
+        async_add_entities([Duet3DLight(coordinator, device_id, f"{name} LED")], True)
 
 
 class Duet3DLightBase(CoordinatorEntity[DuetDataUpdateCoordinator], LightEntity):

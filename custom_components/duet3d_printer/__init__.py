@@ -1,7 +1,7 @@
 """Support for monitoring Duet 3D printers."""
 import logging
 import time
-
+import asyncio
 import requests
 import voluptuous as vol
 import aiohttp
@@ -10,8 +10,10 @@ import homeassistant.helpers.config_validation as cv
 from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry, OptionsFlow
 from homeassistant.util import slugify as util_slugify
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.exceptions import ConfigEntryNotReady
+import homeassistant.util.dt as dt_util
 from typing import cast
 from yarl import URL
 
@@ -125,22 +127,22 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
         hass.data[DOMAIN] = {}
 
     try:
-        coordinator = DuetDataUpdateCoordinator(hass, config_entry, 30)
-        printer_status = await coordinator.get_status()
-        coordinator.firmware_version = await coordinator.get_value_from_json(
-            printer_status, "boards", "software", "firmwareVersion", None
+        coordinator = DuetDataUpdateCoordinator(hass, config_entry, 5)
+        coordinator.data["status"] = await coordinator.get_status()
+        coordinator.firmware_version = coordinator.get_value_from_json(
+            coordinator.data["status"], "boards", "software", "firmwareVersion", None
         )
-        coordinator.board_model = await coordinator.get_value_from_json(
-            printer_status, "boards", "software", "model", None
+        coordinator.board_model = coordinator.get_value_from_json(
+            coordinator.data["status"], "boards", "software", "model", None
         )
     except requests.exceptions.RequestException as conn_err:
         _LOGGER.error("Error setting up Duet API: %r", conn_err)
-
+        raise ConfigEntryNotReady from conn_err
     hass.data[DOMAIN][config_entry.entry_id] = {"coordinator": coordinator}
 
     # register Duet3D API services
     async_register_services(hass, coordinator.base_url)
-    
+
     await hass.config_entries.async_forward_entry_setups(config_entry, PLATFORMS)
 
     return True
@@ -198,9 +200,11 @@ class DuetDataUpdateCoordinator(DataUpdateCoordinator):
             name="duet3d-{config_entry.entry_id}",
             update_interval=timedelta(seconds=interval),
         )
+        self.data = {"status": None, "last_read_time": None}
+        self.interval = interval
         self.config_entry = config_entry
         self.headers = {"CONTENT_TYPE": "CONTENT_TYPE_JSON"}
-        self.status_last_reading = [{}, None]
+        self.status_last_reading = {}
         self.printer_offline = False
         self.status_error_logged = False
         self.number_of_tools = self.config_entry.data[CONF_NUMBER_OF_TOOLS]
@@ -238,12 +242,6 @@ class DuetDataUpdateCoordinator(DataUpdateCoordinator):
     async def get_status(self):
         """Send a get request, and return the response as a dict."""
         # Only query the API at most every 30 seconds
-        now = time.time()
-
-        last_time = self.status_last_reading[1]
-        if last_time is not None:
-            if now - last_time < 30.0:
-                return self.status_last_reading[0]
         url = self.status_api_url
         _LOGGER.debug("URL: %s", url)
         try:
@@ -252,9 +250,7 @@ class DuetDataUpdateCoordinator(DataUpdateCoordinator):
                     async with session.get(url, headers=self.headers) as response:
                         response.raise_for_status()
                         data = await response.json()
-
-                        self.status_last_reading[0] = data
-                        self.status_last_reading[1] = time.time()
+                        self.status_last_reading = data
                         self.printer_offline = True
                         if self.printer_offline:
                             self.status_error_logged = False
@@ -273,7 +269,8 @@ class DuetDataUpdateCoordinator(DataUpdateCoordinator):
     async def _async_update_data(self):
         """Update printer data via API"""
         printer_status = await self.get_status()
-        return printer_status
+        if printer_status is not None:
+            return {"status": printer_status, "last_read_time": dt_util.utcnow()}
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -294,75 +291,10 @@ class DuetDataUpdateCoordinator(DataUpdateCoordinator):
             configuration_url=str(configuration_url),
         )
 
-    async def get_value_from_json(self, json_dict, end_point, sensor_type, group, tool):
+    def get_value_from_json(self, json_dict, end_point, sensor_type, group, tool):
         """Return the value for sensor_type from the JSON."""
-        if end_point == "heat":
-            if sensor_type == "current":
-                if tool == "bed":
-                    bed_heater = json_dict[end_point][group][0][sensor_type]
-                    return bed_heater
-                else:
-                    tool_heater = json_dict[end_point][group][1][sensor_type]
-                    return tool_heater
-            elif sensor_type == "active":
-                if tool == "bed":
-                    return json_dict[end_point][group][0][sensor_type]
-                else:
-                    return json_dict[end_point][group][tool][sensor_type]
-            return None
-        elif end_point == "move":
-            axis_json = json_dict[end_point][group]
-            axes = ["X", "Y", "Z"]
-            positions = [
-                axis_json[i]["machinePosition"]
-                for i in range(len(axis_json))
-                if axis_json[i]["letter"] in axes
-            ]
-            return str(positions)
-        elif end_point == "job" and group == "progress":
-            job_total_num_of_layers = json_dict[end_point]["layer"]
-            job_printed_num_of_layers = json_dict[end_point]["file"]["numLayers"]
-            if (
-                job_total_num_of_layers is not None
-                and job_printed_num_of_layers is not None
-            ):
-                progress_percentage = (
-                    job_total_num_of_layers / job_printed_num_of_layers
-                ) * 100
-                return progress_percentage
-            else:
-                return 0
-        elif end_point == "job" and group == "timesLeft":
-            printTimeLeft = json_dict[end_point][group]["file"]
-            if printTimeLeft is not None:
-                return round(printTimeLeft / 60.0, 2)
-            else:
-                return 0
-        elif end_point == "job" and group == "duration":
-            duration = json_dict[end_point][group]
-            if duration is not None:
-                return round((json_dict[end_point][group]) / 60, 2)
-            else:
-                return
-        elif end_point == "boards":
+        if end_point == "boards":
             if group == "firmwareVersion":
                 return json_dict[end_point][0]["firmwareVersion"]
             if group == "model":
                 return json_dict[end_point][0]["shortName"]
-        else:
-            levels = group.split(".")
-
-            for level in levels:
-                _LOGGER.debug(
-                    "Updating API Duet3D sensor: get_value_from_json, array, %s, %r",
-                    level,
-                    json_dict,
-                )
-                if level not in json_dict:
-                    return 0
-                json_dict = json_dict[level]
-
-            if end_point == "array":
-                return json_dict[int(tool)]
-            else:
-                return json_dict

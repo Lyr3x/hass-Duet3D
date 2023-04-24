@@ -75,7 +75,7 @@ BINARY_SENSOR_TYPES = {
 PRINTER_STATUS_DICT = {
             "S": "Stopped",
             "M": "Simulating",
-            "P": "Printing",
+            "P": "Processing",
             "I": "Idle",
             "C": "Configuring",
             "B": "Busy",
