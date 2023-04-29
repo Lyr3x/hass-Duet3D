@@ -85,6 +85,7 @@ class Duet3dConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     CONF_SBC_GCODE_PATH: CONF_SBC_GCODE_PATH,
                 },
             )
+        
         return self.async_show_form(
             step_id="user",
             data_schema=_schema_with_defaults(),

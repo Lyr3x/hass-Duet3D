@@ -1,15 +1,18 @@
 """Support for monitoring Duet 3D printers."""
 import logging
-import json
 import requests
 import voluptuous as vol
 import aiohttp
+import asyncio
 import async_timeout
 import homeassistant.helpers.config_validation as cv
 from homeassistant.core import HomeAssistant
-from homeassistant.config_entries import ConfigEntry, OptionsFlow
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.util import slugify as util_slugify
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.helpers.update_coordinator import (
+    DataUpdateCoordinator,
+    UpdateFailed,
+)
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.exceptions import ConfigEntryNotReady
 import homeassistant.util.dt as dt_util
@@ -124,7 +127,6 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
         coordinator = DuetDataUpdateCoordinator(
             hass, config_entry, config_entry.data[CONF_INTERVAL]
         )
-
         if config_entry.data[CONF_STANDALONE]:
             coordinator.data["status"]["boards"] = coordinator.get_status("boards")
             try:
@@ -149,8 +151,10 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
             coordinator.board_model = coordinator.get_value_from_json(
                 coordinator.data["status"], "boards", "software", "model", None
             )
+
     except requests.exceptions.RequestException as conn_err:
         _LOGGER.error("Error setting up Duet API: %r", conn_err)
+        coordinator.printer_online = False
         raise ConfigEntryNotReady from conn_err
     hass.data[DOMAIN][config_entry.entry_id] = {"coordinator": coordinator}
 
@@ -183,7 +187,7 @@ class DuetDataUpdateCoordinator(DataUpdateCoordinator):
         super().__init__(
             hass,
             _LOGGER,
-            name="duet3d-{config_entry.entry_id}",
+            name=f"duet3d-{config_entry.entry_id}",
             update_interval=timedelta(seconds=interval),
         )
         self.data = {"status": None, "last_read_time": None}
@@ -191,7 +195,7 @@ class DuetDataUpdateCoordinator(DataUpdateCoordinator):
         self.config_entry = config_entry
         self.headers = {"CONTENT_TYPE": "CONTENT_TYPE_JSON"}
         self.status_last_reading = {}
-        self.printer_offline = False
+        self.printer_online = False
         self.status_error_logged = False
         self.number_of_tools = self.config_entry.data[CONF_NUMBER_OF_TOOLS]
         self.bed = self.config_entry.data[CONF_BED]
@@ -249,20 +253,24 @@ class DuetDataUpdateCoordinator(DataUpdateCoordinator):
                         response.raise_for_status()
                         data = await response.json()
                         self.status_last_reading = data
-                        self.printer_offline = True
-                        if self.printer_offline:
+                        self.printer_online = True
+                        if self.printer_online:
                             self.status_error_logged = False
                         return data
-        except aiohttp.ClientError as conn_exc:
-            log_string = "Failed to update Duet status. " + "  Error: %s" % (conn_exc)
+        except aiohttp.ClientConnectorError as conn_exc:
+            log_string = "Failed to connect to Duet3D board" + "  Error: %s" % (
+                conn_exc
+            )
             # Only log the first failure
             log_string = "Endpoint: status " + log_string
             if not self.status_error_logged:
                 _LOGGER.error(log_string)
                 self.status_error_logged = True
-                self.printer_offline = False
-            self.printer_offline = False
-            return None
+            self.printer_online = False
+            raise ConfigEntryNotReady(conn_exc) from conn_exc
+        except asyncio.TimeoutError as timeout_exc:
+            self.printer_online = False
+            raise UpdateFailed(timeout_exc) from timeout_exc
 
     async def _async_update_data(self):
         """Update printer data via API"""
@@ -270,12 +278,9 @@ class DuetDataUpdateCoordinator(DataUpdateCoordinator):
             status_data = {}
             for sensor_name, sensor_info in SENSOR_TYPES.items():
                 json_path = sensor_info["json_path"]
-                try:
-                    status_data[sensor_name] = await self.get_status(json_path)
-                    if status_data[sensor_name] is not None:
-                        status_data[sensor_name] = status_data[sensor_name]["result"]
-                except (KeyError, TypeError):
-                    _LOGGER.error("Failed to extract data for sensor %s", sensor_name)
+                status_data[sensor_name] = await self.get_status(json_path)
+                if status_data[sensor_name] is not None:
+                    status_data[sensor_name] = status_data[sensor_name]["result"]
             # Create new JSON response with sensor data under the "status" key
             return {"status": status_data, "last_read_time": dt_util.utcnow()}
         else:
@@ -284,6 +289,8 @@ class DuetDataUpdateCoordinator(DataUpdateCoordinator):
                 return {"status": printer_status, "last_read_time": dt_util.utcnow()}
 
     def get_json_value_by_path(self, json_path):
+        if json_path is None:
+            raise UpdateFailed()
         # convert the JSON response to a dictionary object
         json_data = self.data
         # split the JSON path on period separator and iterate over the path elements
