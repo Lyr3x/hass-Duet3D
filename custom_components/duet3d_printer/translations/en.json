@@ -11,20 +11,32 @@
           "number_of_tools": "Number of Tools",
           "bed": "Hotbed installed",
           "light": "LED's installed",
-          "standalone": "Standalone",
+          "standalone": "Use standalone mode",
           "ssl": "Use SSL?"
         }
       }
     }
   },
   "options": {
-    "init": {
-      "title": "Duet3D Options",
-      "data": {
-        "update_interval": "Update interval (seconds)",
-        "bed": "Hotbed installed",
-        "light": "LED's installed"
+    "step": {
+      "init": {
+        "title": "Duet3D Options",
+        "data": {
+          "update_interval": "Update interval (seconds)",
+          "bed": "Hotbed installed",
+          "light": "LED's installed", 
+          "standalone": "Use standalone mode"
+        }
       }
     }
-  }
+  },
+  "error": {
+      "cannot_connect": "Could not connect to host",
+      "unknown": "Unknown error occurred"
+    },
+    "abort": {
+      "already_configured_device": "Device already configured",
+      "unknown": "Unknown error occurred",
+      "cannot_connect": "Could not connect to host"
+    },
 }
