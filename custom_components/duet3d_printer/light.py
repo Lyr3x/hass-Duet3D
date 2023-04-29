@@ -59,7 +59,6 @@ class Duet3DLightBase(CoordinatorEntity[DuetDataUpdateCoordinator], LightEntity)
         self._device_id = device_id
         self._attr_name = f"{self.device_info['name']} {light_name}"
         self._attr_unique_id = device_id
-        _LOGGER.critical(self._attr_name)
 
     @property
     def device_info(self):
