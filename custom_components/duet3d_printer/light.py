@@ -35,7 +35,6 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ):
     """Set up the Duet3D light platform."""
-    name = config_entry.data[CONF_NAME]
     lightIncluded = config_entry.data[CONF_LIGHT]
     if lightIncluded:
         coordinator: DuetDataUpdateCoordinator = hass.data[DOMAIN][
@@ -43,20 +42,24 @@ async def async_setup_entry(
         ]["coordinator"]
         device_id = config_entry.entry_id
         assert device_id is not None
-        async_add_entities([Duet3DLight(coordinator, device_id, f"{name} LED")], True)
+        entities: list[LightEntity] = [
+            Duet3DLight(coordinator, "LED", device_id),
+        ]
+    async_add_entities(entities)
 
 
 class Duet3DLightBase(CoordinatorEntity[DuetDataUpdateCoordinator], LightEntity):
     """Representation of a light connected to a Duet3D printer."""
 
     def __init__(
-        self, coordinator: DuetDataUpdateCoordinator, device_id: str, name
+        self, coordinator: DuetDataUpdateCoordinator, light_name: str, device_id: str
     ) -> None:
         """Initialize the light."""
         super().__init__(coordinator)
         self._device_id = device_id
-        self._attr_name = f"Duet3D {name}"
-        self._attr_unique_id = f"{name}-{device_id}"
+        self._attr_name = f"{self.device_info['name']} {light_name}"
+        self._attr_unique_id = device_id
+        _LOGGER.critical(self._attr_name)
 
     @property
     def device_info(self):
@@ -66,10 +69,9 @@ class Duet3DLightBase(CoordinatorEntity[DuetDataUpdateCoordinator], LightEntity)
 
 class Duet3DLight(Duet3DLightBase):
     def __init__(
-        self, coordinator: DuetDataUpdateCoordinator, device_id: str, name: str
+        self, coordinator: DuetDataUpdateCoordinator, name: str, device_id: str
     ) -> None:
-        super().__init__(coordinator, device_id, name)
-        self._name = name
+        super().__init__(coordinator, name, f"{name}-{device_id}")
         self._state = False
         self._brightness = 255
         self._rgb_color = (255, 255, 255)
@@ -78,7 +80,7 @@ class Duet3DLight(Duet3DLightBase):
     @property
     def name(self):
         """Return the name of the light."""
-        return self._name
+        return self._attr_name
 
     @property
     def should_poll(self):

@@ -6,7 +6,6 @@ from homeassistant.const import (
 DOMAIN = "duet3d_printer"
 
 DEFAULT_NAME = "Duet3D"
-ATTR_NAME = ""
 CONF_NAME = "name"
 CONF_NUMBER_OF_TOOLS = "number_of_tools"
 CONF_BED = "bed"
@@ -60,11 +59,6 @@ SENSOR_TYPES = {
         "unit": "mm,mm,mm",
         "icon": "mdi:axis-x-arrow",
     },
-}
-
-BINARY_SENSOR_TYPES = {
-    # API Endpoint, Group, Key, unit
-    "Printing": ["state", "state.status", "status", None, None],
 }
 
 PRINTER_STATUS = {
