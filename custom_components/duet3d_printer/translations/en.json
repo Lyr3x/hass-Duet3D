@@ -15,6 +15,15 @@
           "ssl": "Use SSL?"
         }
       }
+    },
+    "error": {
+      "cannot_connect": "Could not connect to host",
+      "unknown": "Unknown error occurred"
+    },
+    "abort": {
+      "already_configured_device": "Device already configured",
+      "unknown": "Unknown error occurred",
+      "cannot_connect": "Could not connect to host"
     }
   },
   "options": {
@@ -29,14 +38,5 @@
         }
       }
     }
-  },
-  "error": {
-    "cannot_connect": "Could not connect to host",
-    "unknown": "Unknown error occurred"
-  },
-  "abort": {
-    "already_configured_device": "Device already configured",
-    "unknown": "Unknown error occurred",
-    "cannot_connect": "Could not connect to host"
   }
 }
