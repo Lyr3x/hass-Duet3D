@@ -23,7 +23,8 @@
     "abort": {
       "already_configured_device": "Device already configured",
       "unknown": "Unknown error occurred",
-      "cannot_connect": "Could not connect to host"
+      "cannot_connect": "Could not connect to host",
+      "auth_successful": "Successfully connected to Duet3D"
     }
   },
   "options": {
