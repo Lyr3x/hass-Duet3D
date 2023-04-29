@@ -235,7 +235,7 @@ class DuetDataUpdateCoordinator(DataUpdateCoordinator):
             url = f"{self.status_api_url}?key={key}"
         else:
             url = self.status_api_url
-        _LOGGER.critical("URL: %s", url)
+        _LOGGER.debug("URL: %s", url)
 
         try:
             async with async_timeout.timeout(10):
