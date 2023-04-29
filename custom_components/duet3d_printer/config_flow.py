@@ -5,6 +5,10 @@ from homeassistant.core import callback
 import voluptuous as vol
 import homeassistant.helpers.config_validation as cv
 from homeassistant.const import CONF_HOST, CONF_PORT, CONF_SSL
+from homeassistant.data_entry_flow import FlowResult
+from typing import Any
+from homeassistant.helpers.typing import UNDEFINED
+
 
 from .const import (
     CONF_NUMBER_OF_TOOLS,
@@ -103,51 +107,58 @@ class Duet3dConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 class Duet3dOptionsFlow(config_entries.OptionsFlow):
     """Options flow for Duet3D Printer integration."""
 
-    def __init__(self, config_entry):
+    def __init__(self, config_entry) -> None:
         self.config_entry = config_entry
+        self.title: str | None = None
 
-    async def async_step_init(self, user_input=None):
+    @callback
+    def finish_flow(self) -> FlowResult:
+        """Update the ConfigEntry and finish the flow."""
+        new_data = self.config_entry.data | self.new_entry_data
+        self.hass.config_entries.async_update_entry(
+            self.config_entry,
+            data=new_data,
+            title=self.title or UNDEFINED,
+        )
+        return self.async_create_entry(title="", data={})
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
         """Manage the options."""
+        errors: dict[str, str] = {}
         config_data = self.config_entry.data
         config_options = self.config_entry.options
-
         if user_input is not None:
-            return self.async_create_entry(
-                title=f"{CONF_NAME} ({CONF_HOST})",
-                data={
-                    CONF_INTERVAL: user_input[CONF_INTERVAL],
-                    CONF_BED: user_input[CONF_BED],
-                    CONF_LIGHT: user_input[CONF_LIGHT],
-                    CONF_STANDALONE: user_input[CONF_STANDALONE],
-                },
-            )
-
+            self.new_entry_data = {
+                CONF_INTERVAL: user_input[CONF_INTERVAL],
+                CONF_BED: user_input[CONF_BED],
+                CONF_LIGHT: user_input[CONF_LIGHT],
+                CONF_STANDALONE: user_input[CONF_STANDALONE],
+            }
+            return self.finish_flow()
+        options_schema = vol.Schema(
+            {
+                vol.Optional(
+                    CONF_INTERVAL,
+                    default=config_options.get(
+                        CONF_INTERVAL, config_data.get(CONF_INTERVAL)
+                    ),
+                ): cv.positive_int,
+                vol.Optional(
+                    CONF_BED,
+                    default=config_data.get(CONF_BED),
+                ): bool,
+                vol.Optional(
+                    CONF_LIGHT,
+                    default=config_data.get(CONF_LIGHT),
+                ): bool,
+                vol.Optional(
+                    CONF_STANDALONE,
+                    default=config_data.get(CONF_STANDALONE),
+                ): bool,
+            }
+        )
         return self.async_show_form(
-            step_id="init",
-            data_schema=vol.Schema(
-                {
-                    vol.Optional(
-                        CONF_INTERVAL,
-                        default=config_options.get(
-                            CONF_INTERVAL, config_data.get(CONF_INTERVAL)
-                        ),
-                    ): cv.positive_int,
-                    vol.Optional(
-                        CONF_BED,
-                        default=config_options.get(CONF_BED, config_data.get(CONF_BED)),
-                    ): bool,
-                    vol.Optional(
-                        CONF_LIGHT,
-                        default=config_options.get(
-                            CONF_LIGHT, config_data.get(CONF_LIGHT)
-                        ),
-                    ): bool,
-                    vol.Optional(
-                        CONF_STANDALONE,
-                        default=config_options.get(
-                            CONF_STANDALONE, config_data.get(CONF_STANDALONE)
-                        ),
-                    ): bool,
-                }
-            ),
+            step_id="init", data_schema=options_schema, errors=errors
         )

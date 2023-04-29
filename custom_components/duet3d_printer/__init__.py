@@ -158,15 +158,20 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     async_register_services(hass, coordinator.base_url)
 
     await hass.config_entries.async_forward_entry_setups(config_entry, PLATFORMS)
-
+    config_entry.async_on_unload(config_entry.add_update_listener(update_listener))
     return True
+
+
+async def update_listener(hass, entry):
+    """Handle options update."""
+    await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def async_unload_entry(hass, entry):
     """Unload a config entry."""
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
-        hass.data[DOMAIN].pop(entry.entry_id)
+        del hass.data[DOMAIN][entry.entry_id]
     return unload_ok
 
 
