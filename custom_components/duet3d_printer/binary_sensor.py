@@ -8,11 +8,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from . import DuetDataUpdateCoordinator
 
-from homeassistant.const import (
-    CONF_NAME,
-)
-
-from .const import DOMAIN, BINARY_SENSOR_TYPES, SENSOR_TYPES, PRINTER_STATUS
+from .const import DOMAIN, SENSOR_TYPES
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -23,7 +19,6 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ):
     """Set up the available Duet3D binary sensors."""
-    name = config_entry.data[CONF_NAME]
     coordinator: DuetDataUpdateCoordinator = hass.data[DOMAIN][config_entry.entry_id][
         "coordinator"
     ]
@@ -31,7 +26,7 @@ async def async_setup_entry(
     assert device_id is not None
 
     entities: list[BinarySensorEntity] = [
-        DuetPrintingSensor(coordinator, f"{name} Printing", device_id),
+        DuetPrintingSensor(coordinator, "Printing", device_id),
     ]
     async_add_entities(entities)
 
@@ -50,7 +45,7 @@ class DuetPrintSensorBase(
         """Initialize a new Duet3D sensor."""
         super().__init__(coordinator)
         self._device_id = device_id
-        self._attr_name = f"{sensor_name}"
+        self._attr_name = f"{self.device_info['name']} {sensor_name}"
         self._attr_unique_id = device_id
 
     @property

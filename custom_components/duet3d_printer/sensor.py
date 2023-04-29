@@ -19,14 +19,10 @@ _LOGGER = logging.getLogger(__name__)
 NOTIFICATION_ID = "duet3d_notification"
 NOTIFICATION_TITLE = "Duet3d sensor setup error"
 
-from homeassistant.const import (
-    CONF_NAME,
-)
 from .const import (
     DOMAIN,
     SENSOR_TYPES,
     PRINTER_STATUS,
-    ATTR_NAME,
 )
 
 
@@ -36,7 +32,6 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ):
     """Set up the available Duet3D sensors."""
-    ATTR_NAME = config_entry.data[CONF_NAME]
     coordinator: DuetDataUpdateCoordinator = hass.data[DOMAIN][config_entry.entry_id][
         "coordinator"
     ]
@@ -124,7 +119,7 @@ class DuetPrintSensorBase(CoordinatorEntity[DuetDataUpdateCoordinator], SensorEn
         """Initialize a new Duet3D sensor."""
         super().__init__(coordinator)
         self._device_id = device_id
-        self._attr_name = f"{ATTR_NAME} {sensor_name}"
+        self._attr_name = f"{self.device_info['name']} {sensor_name}"
         self._attr_unique_id = device_id
 
     @property
