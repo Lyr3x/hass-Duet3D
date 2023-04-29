@@ -9,7 +9,7 @@ import voluptuous as vol
 
 from homeassistant.core import HomeAssistant, ServiceCall
 
-from .const import ATTR_GCODE, SERVICE_SEND_GCODE, DOMAIN, CONF_GCODE_PATH, CONF_API
+from .const import ATTR_GCODE, SERVICE_SEND_GCODE, DOMAIN, CONF_SBC_GCODE_PATH, CONF_SBC_API
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -17,7 +17,7 @@ _LOGGER = logging.getLogger(__name__)
 def async_register_services(hass, baseUrl: str) -> None:
     async def send_gcode(call: ServiceCall):
         """Send G-code to the printer."""
-        url = "{}{}{}".format(baseUrl, CONF_API, CONF_GCODE_PATH)
+        url = "{}{}{}".format(baseUrl, CONF_SBC_API, CONF_SBC_GCODE_PATH)
         headers = {"Content-Type": "text/plain"}
 
         try:

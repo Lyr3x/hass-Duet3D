@@ -12,7 +12,7 @@ from homeassistant.const import (
     CONF_NAME,
 )
 
-from .const import DOMAIN, BINARY_SENSOR_TYPES, SENSOR_TYPES, PRINTER_STATUS_DICT
+from .const import DOMAIN, BINARY_SENSOR_TYPES, SENSOR_TYPES, PRINTER_STATUS
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -77,16 +77,10 @@ class DuetPrintingSensor(DuetPrintSensorBase):
     @property
     def is_on(self):
         """Return sensor state."""
-        json_dict = self.coordinator.data["status"]
-        printerStatus = json_dict["state"]["status"]
-        if printerStatus is not None:
-            print_status_dict_lower = {
-                k: v.lower() for k, v in PRINTER_STATUS_DICT.items()
-            }
-            if printerStatus in print_status_dict_lower.values() and printerStatus in {
-                "processing",
-                "simulating",
-            }:
+        current_state_json_path = SENSOR_TYPES["Current State"]["json_path"]
+        current_state = self.coordinator.get_json_value_by_path(current_state_json_path)
+        if current_state is not None:
+            if current_state in {"processing", "simulating"}:
                 return True
             else:
                 return False

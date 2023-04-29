@@ -1,7 +1,6 @@
 """Support for monitoring Duet 3D printers."""
 import logging
-import time
-import asyncio
+import json
 import requests
 import voluptuous as vol
 import aiohttp
@@ -26,7 +25,6 @@ from homeassistant.const import (
     CONF_HOST,
     CONF_NAME,
     CONF_PORT,
-    CONF_MONITORED_CONDITIONS,
     CONF_SENSORS,
     CONF_BINARY_SENSORS,
     CONF_SSL,
@@ -35,13 +33,15 @@ from homeassistant.const import (
 from .const import (
     DEFAULT_NAME,
     CONF_NUMBER_OF_TOOLS,
-    CONF_STATUS_PATH,
-    CONF_API,
+    CONF_SBC_STATUS_PATH,
+    CONF_SBC_API,
+    CONF_STANDALONE_API,
+    CONF_STANDALONE,
     CONF_BED,
     DOMAIN,
-    SENSOR_TYPES,
-    BINARY_SENSOR_TYPES,
     CONF_LIGHT,
+    CONF_INTERVAL,
+    SENSOR_TYPES,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -67,18 +67,12 @@ def ensure_valid_path(value):
 
 SENSOR_SCHEMA = vol.Schema(
     {
-        vol.Optional(CONF_MONITORED_CONDITIONS, default=list(SENSOR_TYPES)): vol.All(
-            cv.ensure_list, [vol.In(tuple(SENSOR_TYPES))]
-        ),
         vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
     }
 )
 
 BINARY_SENSOR_SCHEMA = vol.Schema(
     {
-        vol.Optional(
-            CONF_MONITORED_CONDITIONS, default=list(BINARY_SENSOR_TYPES)
-        ): vol.All(cv.ensure_list, [vol.In(BINARY_SENSOR_TYPES)]),
         vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
     }
 )
@@ -127,14 +121,34 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
         hass.data[DOMAIN] = {}
 
     try:
-        coordinator = DuetDataUpdateCoordinator(hass, config_entry, 5)
-        coordinator.data["status"] = await coordinator.get_status()
-        coordinator.firmware_version = coordinator.get_value_from_json(
-            coordinator.data["status"], "boards", "software", "firmwareVersion", None
+        coordinator = DuetDataUpdateCoordinator(
+            hass, config_entry, config_entry.data[CONF_INTERVAL]
         )
-        coordinator.board_model = coordinator.get_value_from_json(
-            coordinator.data["status"], "boards", "software", "model", None
-        )
+
+        if config_entry.data[CONF_STANDALONE]:
+            coordinator.data["status"]["boards"] = coordinator.get_status("boards")
+            try:
+                coordinator.firmware_version = coordinator.get_json_value_by_path(
+                    "status.boards.software.firmwareVersion"
+                )
+                coordinator.board_model = coordinator.get_json_value_by_path(
+                    "status.boards.software.model"
+                )
+
+            except (KeyError, TypeError):
+                _LOGGER.error("Failed to extract data for sensor")
+        else:
+            coordinator.data["status"] = await coordinator.get_status()
+            coordinator.firmware_version = coordinator.get_value_from_json(
+                coordinator.data["status"],
+                "boards",
+                "software",
+                "firmwareVersion",
+                None,
+            )
+            coordinator.board_model = coordinator.get_value_from_json(
+                coordinator.data["status"], "boards", "software", "model", None
+            )
     except requests.exceptions.RequestException as conn_err:
         _LOGGER.error("Error setting up Duet API: %r", conn_err)
         raise ConfigEntryNotReady from conn_err
@@ -144,49 +158,21 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     async_register_services(hass, coordinator.base_url)
 
     await hass.config_entries.async_forward_entry_setups(config_entry, PLATFORMS)
-
+    config_entry.async_on_unload(config_entry.add_update_listener(update_listener))
     return True
+
+
+async def update_listener(hass, entry):
+    """Handle options update."""
+    await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def async_unload_entry(hass, entry):
     """Unload a config entry."""
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
-        hass.data[DOMAIN].pop(entry.entry_id)
+        del hass.data[DOMAIN][entry.entry_id]
     return unload_ok
-
-
-async def async_get_options_flow(config_entry):
-    """Return options flow."""
-    return Duet3DOptionsFlowHandler(config_entry)
-
-
-class Duet3DOptionsFlowHandler(OptionsFlow):
-    """Handle Duet3D options."""
-
-    def __init__(self, config_entry):
-        """Initialize Duet3D options flow."""
-        self.config_entry = config_entry
-
-    async def async_step_init(self, user_input=None):
-        """Manage the options."""
-        if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
-
-        return self.async_show_form(
-            step_id="init",
-            data_schema=vol.Schema(
-                {
-                    vol.Required(
-                        CONF_MONITORED_CONDITIONS,
-                        default=self.config_entry.options.get(
-                            CONF_MONITORED_CONDITIONS,
-                            [DEFAULT_SENSOR],
-                        ),
-                    ): [str],
-                }
-            ),
-        )
 
 
 class DuetDataUpdateCoordinator(DataUpdateCoordinator):
@@ -214,13 +200,21 @@ class DuetDataUpdateCoordinator(DataUpdateCoordinator):
             self.config_entry.data[CONF_HOST],
             self.config_entry.data[CONF_PORT],
         )
-        self.status_api_url = "http{0}://{1}:{2}{3}{4}".format(
-            "s" if self.config_entry.data[CONF_SSL] else "",
-            config_entry.data[CONF_HOST],
-            config_entry.data[CONF_PORT],
-            CONF_API,
-            CONF_STATUS_PATH,
-        )
+        if self.config_entry.data[CONF_STANDALONE]:
+            self.status_api_url = "http{0}://{1}:{2}{3}".format(
+                "s" if self.config_entry.data[CONF_SSL] else "",
+                config_entry.data[CONF_HOST],
+                config_entry.data[CONF_PORT],
+                CONF_STANDALONE_API,
+            )
+        else:
+            self.status_api_url = "http{0}://{1}:{2}{3}{4}".format(
+                "s" if self.config_entry.data[CONF_SSL] else "",
+                config_entry.data[CONF_HOST],
+                config_entry.data[CONF_PORT],
+                CONF_SBC_API,
+                CONF_SBC_STATUS_PATH,
+            )
         self.firmware_version = (None,)
         self.board_model = (None,)
 
@@ -239,11 +233,15 @@ class DuetDataUpdateCoordinator(DataUpdateCoordinator):
                 tools = temps.keys()
         return tools
 
-    async def get_status(self):
+    async def get_status(self, key=None):
         """Send a get request, and return the response as a dict."""
         # Only query the API at most every 30 seconds
-        url = self.status_api_url
+        if self.config_entry.data[CONF_STANDALONE]:
+            url = f"{self.status_api_url}?key={key}"
+        else:
+            url = self.status_api_url
         _LOGGER.debug("URL: %s", url)
+
         try:
             async with async_timeout.timeout(10):
                 async with aiohttp.ClientSession() as session:
@@ -268,9 +266,37 @@ class DuetDataUpdateCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self):
         """Update printer data via API"""
-        printer_status = await self.get_status()
-        if printer_status is not None:
-            return {"status": printer_status, "last_read_time": dt_util.utcnow()}
+        if self.config_entry.data[CONF_STANDALONE]:
+            status_data = {}
+            for sensor_name, sensor_info in SENSOR_TYPES.items():
+                json_path = sensor_info["json_path"]
+                try:
+                    status_data[sensor_name] = await self.get_status(json_path)
+                    if status_data[sensor_name] is not None:
+                        status_data[sensor_name] = status_data[sensor_name]["result"]
+                except (KeyError, TypeError):
+                    _LOGGER.error("Failed to extract data for sensor %s", sensor_name)
+            # Create new JSON response with sensor data under the "status" key
+            return {"status": status_data, "last_read_time": dt_util.utcnow()}
+        else:
+            printer_status = await self.get_status()
+            if printer_status is not None:
+                return {"status": printer_status, "last_read_time": dt_util.utcnow()}
+
+    def get_json_value_by_path(self, json_path):
+        # convert the JSON response to a dictionary object
+        json_data = self.data
+        # split the JSON path on period separator and iterate over the path elements
+        for path_element in json_path.split("."):
+            # if the current path element contains an array index
+            if "[" in path_element:
+                list_name, index_str = path_element[:-1].split("[")
+                # get the value at the specified index in the list
+                json_data = json_data[list_name][int(index_str)]
+            else:
+                # otherwise, access the object property with the current path element
+                json_data = json_data[path_element]
+        return json_data
 
     @property
     def device_info(self) -> DeviceInfo:
