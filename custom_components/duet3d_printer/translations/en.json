@@ -24,19 +24,19 @@
         "data": {
           "update_interval": "Update interval (seconds)",
           "bed": "Hotbed installed",
-          "light": "LED's installed", 
+          "light": "LED's installed",
           "standalone": "Use standalone mode"
         }
       }
     }
   },
   "error": {
-      "cannot_connect": "Could not connect to host",
-      "unknown": "Unknown error occurred"
-    },
-    "abort": {
-      "already_configured_device": "Device already configured",
-      "unknown": "Unknown error occurred",
-      "cannot_connect": "Could not connect to host"
-    },
+    "cannot_connect": "Could not connect to host",
+    "unknown": "Unknown error occurred"
+  },
+  "abort": {
+    "already_configured_device": "Device already configured",
+    "unknown": "Unknown error occurred",
+    "cannot_connect": "Could not connect to host"
+  }
 }
