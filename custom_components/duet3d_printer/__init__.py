@@ -129,18 +129,18 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
         )
         if config_entry.data[CONF_STANDALONE]:
             _LOGGER.info("Using standalone mode")
-        # ToDo: Use correct paths later
-        # coordinator.data["status"]["boards"] = coordinator.get_status("boards")
-        # try:
-        #     coordinator.firmware_version = coordinator.get_json_value_by_path(
-        #         "status.boards.software.firmwareVersion"
-        #     )
-        #     coordinator.board_model = coordinator.get_json_value_by_path(
-        #         "status.boards.software.model"
-        #     )
+            # ToDo: Use correct paths later
+            coordinator.data["status"]["boards"] = coordinator.get_status("boards[]")
+            try:
+                coordinator.firmware_version = coordinator.get_json_value_by_path(
+                    "firmwareVersion"
+                )
+                coordinator.board_model = coordinator.get_json_value_by_path(
+                    "shortName"
+                )
 
-        # except (KeyError, TypeError):
-        #     _LOGGER.error("Failed to extract data for sensor")
+            except (KeyError, TypeError):
+                _LOGGER.error("Failed to extract data for sensor")
         else:
             coordinator.data["status"] = await coordinator.get_status()
             coordinator.firmware_version = coordinator.get_value_from_json(
@@ -279,19 +279,18 @@ class DuetDataUpdateCoordinator(DataUpdateCoordinator):
         if self.config_entry.data[CONF_STANDALONE]:
             status_data = {}
             for sensor_name, sensor_info in SENSOR_TYPES.items():
-                _LOGGER.critical(sensor_name)
                 json_path = sensor_info["json_path"]
                 json_path = json_path.replace("status.", "")
-                _LOGGER.critical(json_path)
                 sensor_data = await self.get_status(json_path)
                 if status_data is not None and "result" in sensor_data:
                     status_data[sensor_name] = status_data["result"]
                 # Create new JSON response with sensor data under the "status" key
-                return {"status": status_data, "last_read_time": dt_util.utcnow()}
+            return {"status": status_data, "last_read_time": dt_util.utcnow()}
         else:
             printer_status = await self.get_status()
             if printer_status is not None:
                 return {"status": printer_status, "last_read_time": dt_util.utcnow()}
+        return None
 
     def get_json_value_by_path(self, json_path):
         if json_path is None:
