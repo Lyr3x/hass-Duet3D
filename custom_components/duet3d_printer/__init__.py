@@ -127,30 +127,31 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
         coordinator = DuetDataUpdateCoordinator(
             hass, config_entry, config_entry.data[CONF_INTERVAL]
         )
-        if config_entry.data[CONF_STANDALONE]:
-            coordinator.data["status"]["boards"] = coordinator.get_status("boards")
-            try:
-                coordinator.firmware_version = coordinator.get_json_value_by_path(
-                    "status.boards.software.firmwareVersion"
-                )
-                coordinator.board_model = coordinator.get_json_value_by_path(
-                    "status.boards.software.model"
-                )
+        # if config_entry.data[CONF_STANDALONE]:
+        # ToDo: Use correct paths later
+        # coordinator.data["status"]["boards"] = coordinator.get_status("boards")
+        # try:
+        #     coordinator.firmware_version = coordinator.get_json_value_by_path(
+        #         "status.boards.software.firmwareVersion"
+        #     )
+        #     coordinator.board_model = coordinator.get_json_value_by_path(
+        #         "status.boards.software.model"
+        #     )
 
-            except (KeyError, TypeError):
-                _LOGGER.error("Failed to extract data for sensor")
-        else:
-            coordinator.data["status"] = await coordinator.get_status()
-            coordinator.firmware_version = coordinator.get_value_from_json(
-                coordinator.data["status"],
-                "boards",
-                "software",
-                "firmwareVersion",
-                None,
-            )
-            coordinator.board_model = coordinator.get_value_from_json(
-                coordinator.data["status"], "boards", "software", "model", None
-            )
+        # except (KeyError, TypeError):
+        #     _LOGGER.error("Failed to extract data for sensor")
+        # else:
+        coordinator.data["status"] = await coordinator.get_status()
+        coordinator.firmware_version = coordinator.get_value_from_json(
+            coordinator.data["status"],
+            "boards",
+            "software",
+            "firmwareVersion",
+            None,
+        )
+        coordinator.board_model = coordinator.get_value_from_json(
+            coordinator.data["status"], "boards", "software", "model", None
+        )
 
     except requests.exceptions.RequestException as conn_err:
         _LOGGER.error("Error setting up Duet API: %r", conn_err)
@@ -277,12 +278,14 @@ class DuetDataUpdateCoordinator(DataUpdateCoordinator):
         if self.config_entry.data[CONF_STANDALONE]:
             status_data = {}
             for sensor_name, sensor_info in SENSOR_TYPES.items():
+                _LOGGER.critical(sensor_name)
                 json_path = sensor_info["json_path"]
+                _LOGGER.critical(json_path)
                 status_data[sensor_name] = await self.get_status(json_path)
-                if status_data[sensor_name] is not None:
-                    status_data[sensor_name] = status_data[sensor_name]["result"]
-            # Create new JSON response with sensor data under the "status" key
-            return {"status": status_data, "last_read_time": dt_util.utcnow()}
+            #     if status_data[sensor_name] is not None:
+            #         status_data[sensor_name] = status_data[sensor_name]["result"]
+            # # Create new JSON response with sensor data under the "status" key
+            # return {"status": status_data, "last_read_time": dt_util.utcnow()}
         else:
             printer_status = await self.get_status()
             if printer_status is not None:
