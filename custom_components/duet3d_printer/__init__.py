@@ -129,7 +129,6 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
         )
         if config_entry.data[CONF_STANDALONE]:
             _LOGGER.info("Using standalone mode")
-            # ToDo: Use correct paths later
             coordinator.data["status"]["boards"] = coordinator.get_status("boards[]")
             try:
                 coordinator.firmware_version = coordinator.get_json_value_by_path(
@@ -138,7 +137,6 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
                 coordinator.board_model = coordinator.get_json_value_by_path(
                     "shortName"
                 )
-
             except (KeyError, TypeError):
                 _LOGGER.error("Failed to extract data for sensor")
         else:
