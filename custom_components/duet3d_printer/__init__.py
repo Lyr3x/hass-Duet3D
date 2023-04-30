@@ -280,12 +280,13 @@ class DuetDataUpdateCoordinator(DataUpdateCoordinator):
             for sensor_name, sensor_info in SENSOR_TYPES.items():
                 _LOGGER.critical(sensor_name)
                 json_path = sensor_info["json_path"]
+                json_path = json_path.replace("status.", "")
                 _LOGGER.critical(json_path)
-                status_data[sensor_name] = await self.get_status(json_path)
-            #     if status_data[sensor_name] is not None:
-            #         status_data[sensor_name] = status_data[sensor_name]["result"]
-            # # Create new JSON response with sensor data under the "status" key
-            # return {"status": status_data, "last_read_time": dt_util.utcnow()}
+                sensor_data = await self.get_status(json_path)
+                if status_data is not None and "result" in sensor_data:
+                    status_data[sensor_name] = status_data["result"]
+                # Create new JSON response with sensor data under the "status" key
+                return {"status": status_data, "last_read_time": dt_util.utcnow()}
         else:
             printer_status = await self.get_status()
             if printer_status is not None:
