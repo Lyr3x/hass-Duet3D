@@ -127,7 +127,8 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
         coordinator = DuetDataUpdateCoordinator(
             hass, config_entry, config_entry.data[CONF_INTERVAL]
         )
-        # if config_entry.data[CONF_STANDALONE]:
+        if config_entry.data[CONF_STANDALONE]:
+            _LOGGER.info("Using standalone mode")
         # ToDo: Use correct paths later
         # coordinator.data["status"]["boards"] = coordinator.get_status("boards")
         # try:
@@ -140,18 +141,18 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
 
         # except (KeyError, TypeError):
         #     _LOGGER.error("Failed to extract data for sensor")
-        # else:
-        coordinator.data["status"] = await coordinator.get_status()
-        coordinator.firmware_version = coordinator.get_value_from_json(
-            coordinator.data["status"],
-            "boards",
-            "software",
-            "firmwareVersion",
-            None,
-        )
-        coordinator.board_model = coordinator.get_value_from_json(
-            coordinator.data["status"], "boards", "software", "model", None
-        )
+        else:
+            coordinator.data["status"] = await coordinator.get_status()
+            coordinator.firmware_version = coordinator.get_value_from_json(
+                coordinator.data["status"],
+                "boards",
+                "software",
+                "firmwareVersion",
+                None,
+            )
+            coordinator.board_model = coordinator.get_value_from_json(
+                coordinator.data["status"], "boards", "software", "model", None
+            )
 
     except requests.exceptions.RequestException as conn_err:
         _LOGGER.error("Error setting up Duet API: %r", conn_err)
