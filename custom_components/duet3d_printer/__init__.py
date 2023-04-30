@@ -278,7 +278,7 @@ class DuetDataUpdateCoordinator(DataUpdateCoordinator):
                 json_path = json_path.replace("status.", "")
                 sensor_data = await self.get_status(json_path)
                 if status_data is not None and "result" in sensor_data:
-                    status_data[sensor_name] = status_data["result"]
+                    status_data[sensor_name]["status"] = status_data["result"]
                 # Create new JSON response with sensor data under the "status" key
             return {"status": status_data, "last_read_time": dt_util.utcnow()}
         else:
