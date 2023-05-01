@@ -105,7 +105,6 @@ class Duet3dConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
             try:
                 if user_input[CONF_STANDALONE]:
-                    _LOGGER.warning("Connection check for standalone not implemented")
                     await test_standalone_connection(connection_url)
                 else:
                     await test_sbc_connection(connection_url)
