@@ -74,11 +74,11 @@ async def test_sbc_connection(base_url) -> str:
 
 
 async def test_standalone_connection(base_url) -> str:
-    connection_url = f"{base_url}/rr_connect"
+    connection_url = f"{base_url}/rr_connect?password=''"
     async with async_timeout.timeout(10):
         async with aiohttp.ClientSession() as session:
             async with session.get(
-                connection_url, headers=CONF_TEXT_PLAIN_HEADER
+                connection_url, headers=CONF_JSON_HEADER
             ) as response:
                 response.raise_for_status()
                 return response.status
