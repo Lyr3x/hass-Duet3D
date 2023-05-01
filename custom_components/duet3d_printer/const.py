@@ -28,7 +28,7 @@ SENSOR_TYPES = {
         "icon": "mdi:thermometer",
     },
     "Tool Temperatures": {
-        "json_path": "status.heat.heaters[1]",
+        "json_path": "status.heat.heaters", 
         "unit": "TEMP_CELSIUS",
         "icon": "mdi:thermometer",
     },

@@ -4,17 +4,24 @@ import asyncio
 import logging
 import aiohttp
 import async_timeout
+import homeassistant.util.dt as dt_util
 
 import voluptuous as vol
 
-from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.core import ServiceCall
 
-from .const import ATTR_GCODE, SERVICE_SEND_GCODE, DOMAIN, CONF_SBC_GCODE_PATH, CONF_SBC_API
+from .const import (
+    ATTR_GCODE,
+    SERVICE_SEND_GCODE,
+    DOMAIN,
+    CONF_SBC_GCODE_PATH,
+    CONF_SBC_API,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
 
-def async_register_services(hass, baseUrl: str) -> None:
+def async_register_services(hass, baseUrl: str) -> str:
     async def send_gcode(call: ServiceCall):
         """Send G-code to the printer."""
         url = "{}{}{}".format(baseUrl, CONF_SBC_API, CONF_SBC_GCODE_PATH)
@@ -27,12 +34,12 @@ def async_register_services(hass, baseUrl: str) -> None:
                         url, data=call.data[ATTR_GCODE], headers=headers, ssl=False
                     )
                     response.raise_for_status()
+                    response_data = await response.text()
+                    return response_data
         except (asyncio.TimeoutError, aiohttp.ClientError) as error:
             raise ConnectionError(
                 f"Error communicating with printer at {url}"
             ) from error
-        else:
-            return await response.text()
 
     if not hass.services.has_service(DOMAIN, SERVICE_SEND_GCODE):
         _LOGGER.debug("Registering service now!")
