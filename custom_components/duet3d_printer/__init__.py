@@ -159,7 +159,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     hass.data[DOMAIN][config_entry.entry_id] = {"coordinator": coordinator}
 
     # register Duet3D API services
-    async_register_services(hass, coordinator.base_url)
+    async_register_services(hass, config_entry)
 
     await hass.config_entries.async_forward_entry_setups(config_entry, PLATFORMS)
     config_entry.async_on_unload(config_entry.add_update_listener(update_listener))
@@ -199,11 +199,6 @@ class DuetDataUpdateCoordinator(DataUpdateCoordinator):
         self.status_error_logged = False
         self.number_of_tools = self.config_entry.data[CONF_NUMBER_OF_TOOLS]
         self.bed = self.config_entry.data[CONF_BED]
-        self.base_url = "http{0}://{1}:{2}".format(
-            "s" if self.config_entry.data[CONF_SSL] else "",
-            self.config_entry.data[CONF_HOST],
-            self.config_entry.data[CONF_PORT],
-        )
         if self.config_entry.data[CONF_STANDALONE]:
             self.status_api_url = "http{0}://{1}:{2}{3}".format(
                 "s" if self.config_entry.data[CONF_SSL] else "",
