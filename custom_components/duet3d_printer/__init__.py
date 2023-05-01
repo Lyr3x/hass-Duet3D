@@ -130,10 +130,13 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
         if config_entry.data[CONF_STANDALONE]:
             _LOGGER.info("Using standalone mode")
             try:
-                coordinator.firmware_version = coordinator.get_status(
+                firmwareVersion = await coordinator.get_status(
                     "boards[].firmwareVersion"
                 )
-                coordinator.board_model = coordinator.get_status("boards[].shortName")
+                coordinator.firmware_version = firmwareVersion["result"]
+
+                board_model = await coordinator.get_status("boards[].name")
+                coordinator.board_model = board_model["result"]
             except (KeyError, TypeError):
                 _LOGGER.error("Failed to extract data for sensor")
         else:
@@ -290,7 +293,8 @@ class DuetDataUpdateCoordinator(DataUpdateCoordinator):
 
     def get_sensor_state(self, json_path=None, sensor_name=None):
         if self.config_entry.data[CONF_STANDALONE]:
-            return self.data["status"][sensor_name]
+            if self.data["status"] is not None and sensor_name in self.data["status"]:
+                return self.data["status"][sensor_name]
         else:
             return self.get_json_value_by_path(json_path)
 

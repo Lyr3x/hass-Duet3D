@@ -23,6 +23,7 @@ from .const import (
     DOMAIN,
     SENSOR_TYPES,
     PRINTER_STATUS,
+    CONF_STANDALONE,
 )
 
 
@@ -59,7 +60,7 @@ async def async_setup_entry(
         bed_types = ["current", "active"]
         if not coordinator.data["status"]:
             return
-
+        
         new_tools = []
         for tool in tools:
             if tool == "bed":
@@ -151,16 +152,18 @@ class DuetTemperatureSensor(DuetPrintSensorBase):
             f"{tool}-{sensor_type}-{device_id}",
         )
         self._sensor_type = sensor_type
-        self._api_tool = tool
+        self._no_of_tool = tool
 
     @property
     def native_value(self):
         """Return sensor state."""
-        if self._api_tool == "bed":
+        if self._no_of_tool == "bed":
             json_path = SENSOR_TYPES["Bed Temperatures"]["json_path"]
             bed_heater = self.coordinator.get_sensor_state(
                 json_path + "." + self._sensor_type, "Bed Temperatures"
             )
+            if self.coordinator.config_entry.data[CONF_STANDALONE]:
+                bed_heater = bed_heater[self._sensor_type]
             if bed_heater is not None:
                 return bed_heater
             else:
@@ -168,10 +171,10 @@ class DuetTemperatureSensor(DuetPrintSensorBase):
         else:
             json_path = SENSOR_TYPES["Tool Temperatures"]["json_path"]
             tool_heater = self.coordinator.get_sensor_state(
-                json_path + "." + self._sensor_type, "Tool Temperatures"
+                f"{json_path}", "Tool Temperatures"
             )
             if tool_heater is not None:
-                return tool_heater
+                return tool_heater[self._no_of_tool][self._sensor_type]
             else:
                 return -1
 
@@ -180,7 +183,6 @@ class DuetTemperatureSensor(DuetPrintSensorBase):
         """Return if entity is available."""
         return (
             self.coordinator.last_update_success
-            and self.coordinator.data["status"]["heat"]["heaters"]
         )
 
 
@@ -310,21 +312,22 @@ class DuetPrintPositionSensor(DuetPrintSensorBase):
         """Return sensor state."""
         position_json_path = SENSOR_TYPES["Position"]["json_path"]
         axis_json = self.coordinator.get_sensor_state(
-            position_json_path, self.sensor_name
+            position_json_path, "Position"
         )
-        positions = [
-            axis_json[i]["machinePosition"]
-            for i in range(len(axis_json))
-            if axis_json[i]["letter"] in SENSOR_TYPES["Position"]["axes"]
-        ]
-        return str(positions)
+        if axis_json is not None:
+            positions = [
+                axis_json[i]["machinePosition"]
+                for i in range(len(axis_json))
+                if axis_json[i]["letter"] in SENSOR_TYPES["Position"]["axes"]
+            ]
+            return str(positions)
+        return str(0)
 
     @property
     def available(self) -> bool:
         """Return if entity is available."""
         return (
             self.coordinator.last_update_success
-            and self.coordinator.data["status"]["move"]["axes"]
         )
 
 
