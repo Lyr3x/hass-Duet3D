@@ -93,28 +93,29 @@ class Duet3dConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_user(self, user_input=None):
         errors = {}
         if user_input is not None:
+            # Check if host is already configured
+            await self.async_set_unique_id(user_input[CONF_HOST])
+            self._abort_if_unique_id_configured()
+
             connection_url = "http{0}://{1}:{2}".format(
                 "s" if user_input[CONF_SSL] else "",
                 user_input[CONF_HOST],
                 user_input[CONF_PORT],
             )
-            if user_input[CONF_STANDALONE]:
-                _LOGGER.warning("Connection check for standalone not implemented")
-                await test_standalone_connection(connection_url)
-            else:
-                try:
-                    connectionStatus = await test_sbc_connection(connection_url)
-                except (ClientError, asyncio.TimeoutError):
-                    errors[CONF_HOST] = "cannot_connect"
-                except Exception:  # pylint: disable=broad-except
-                    _LOGGER.exception("Unexpected exception")
-                    errors[CONF_HOST] = "unknown"
+
+            try:
+                if user_input[CONF_STANDALONE]:
+                    _LOGGER.warning("Connection check for standalone not implemented")
+                    await test_standalone_connection(connection_url)
+                else:
+                    await test_sbc_connection(connection_url)
+            except (ClientError, asyncio.TimeoutError):
+                errors[CONF_HOST] = "cannot_connect"
+            except Exception:  # pylint: disable=broad-except
+                _LOGGER.exception("Unexpected exception")
+                errors[CONF_HOST] = "unknown"
 
             if not errors:
-                # Check if host is already configured
-                await self.async_set_unique_id(user_input[CONF_HOST])
-                self._abort_if_unique_id_configured()
-
                 return self.async_create_entry(
                     title=f"{user_input[CONF_NAME]} ({user_input[CONF_HOST]})",
                     data={
