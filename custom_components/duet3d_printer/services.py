@@ -22,6 +22,7 @@ from .const import (
     CONF_SBC_API,
     CONF_STANDALONE,
     CONF_STANDALONE_GCODE_PATH,
+    CONF_TEXT_PLAIN_HEADER,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -45,8 +46,6 @@ def async_register_services(hass: HomeAssistant, config_entry: ConfigEntry) -> N
                 CONF_SBC_API,
                 CONF_SBC_GCODE_PATH,
             )
-        headers = {"Content-Type": "text/plain"}
-
         try:
             async with aiohttp.ClientSession() as session:
                 with async_timeout.timeout(10):
@@ -54,11 +53,17 @@ def async_register_services(hass: HomeAssistant, config_entry: ConfigEntry) -> N
                         params = {"gcode": call.data[ATTR_GCODE]}
 
                         response = await session.get(
-                            url, params=params, headers=headers, ssl=False
+                            url,
+                            params=params,
+                            headers=CONF_TEXT_PLAIN_HEADER,
+                            ssl=False,
                         )
                     else:
                         response = await session.post(
-                            url, data=call.data[ATTR_GCODE], headers=headers, ssl=False
+                            url,
+                            data=call.data[ATTR_GCODE],
+                            headers=CONF_TEXT_PLAIN_HEADER,
+                            ssl=False,
                         )
                     response.raise_for_status()
                     if response.status == 200:

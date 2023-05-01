@@ -45,7 +45,7 @@ async def async_setup_entry(
         entities: list[LightEntity] = [
             Duet3DLight(coordinator, "LED", device_id),
         ]
-    async_add_entities(entities)
+        async_add_entities(entities)
 
 
 class Duet3DLightBase(CoordinatorEntity[DuetDataUpdateCoordinator], LightEntity):
