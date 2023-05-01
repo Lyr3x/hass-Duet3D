@@ -278,14 +278,21 @@ class DuetDataUpdateCoordinator(DataUpdateCoordinator):
                 json_path = json_path.replace("status.", "")
                 sensor_data = await self.get_status(json_path)
                 if status_data is not None and "result" in sensor_data:
-                    status_data[sensor_name]["status"] = status_data["result"]
-                # Create new JSON response with sensor data under the "status" key
+                    status_data[sensor_name] = sensor_data["result"]
+                else:
+                    status_data[sensor_name] = ""
             return {"status": status_data, "last_read_time": dt_util.utcnow()}
         else:
             printer_status = await self.get_status()
             if printer_status is not None:
                 return {"status": printer_status, "last_read_time": dt_util.utcnow()}
         return None
+
+    def get_sensor_state(self, json_path=None, sensor_name=None):
+        if self.config_entry.data[CONF_STANDALONE]:
+            return self.data["status"][sensor_name]
+        else:
+            return self.get_json_value_by_path(json_path)
 
     def get_json_value_by_path(self, json_path):
         if json_path is None:
@@ -301,6 +308,8 @@ class DuetDataUpdateCoordinator(DataUpdateCoordinator):
                 json_data = json_data[list_name][int(index_str)]
             else:
                 # otherwise, access the object property with the current path element
+                if path_element not in json_data:
+                    return None
                 json_data = json_data[path_element]
         return json_data
 
@@ -322,7 +331,7 @@ class DuetDataUpdateCoordinator(DataUpdateCoordinator):
             sw_version=self.firmware_version,
             configuration_url=str(configuration_url),
         )
-
+    
     def get_value_from_json(self, json_dict, end_point, sensor_type, group, tool):
         """Return the value for sensor_type from the JSON."""
         if end_point == "boards":

@@ -102,7 +102,7 @@ async def async_setup_entry(
         DuetTimeRemainingSensor(coordinator, "Time Remaining", device_id),
         DuetPrintDurationSensor(coordinator, "Time Elapsed", device_id),
         DuetPrintPositionSensor(coordinator, "Position (X,Y,Z)", device_id),
-        DuetCurrentStateSensor(coordinator, "Current state", device_id),
+        DuetCurrentStateSensor(coordinator, "Current State", device_id),
     ]
     async_add_entities(entities)
 
@@ -121,6 +121,7 @@ class DuetPrintSensorBase(CoordinatorEntity[DuetDataUpdateCoordinator], SensorEn
         self._device_id = device_id
         self._attr_name = f"{self.device_info['name']} {sensor_name}"
         self._attr_unique_id = device_id
+        self.sensor_name = sensor_name
 
     @property
     def device_info(self):
@@ -157,8 +158,8 @@ class DuetTemperatureSensor(DuetPrintSensorBase):
         """Return sensor state."""
         if self._api_tool == "bed":
             json_path = SENSOR_TYPES["Bed Temperatures"]["json_path"]
-            bed_heater = self.coordinator.get_json_value_by_path(
-                json_path + "." + self._sensor_type
+            bed_heater = self.coordinator.get_sensor_state(
+                json_path + "." + self._sensor_type, "Bed Temperatures"
             )
             if bed_heater is not None:
                 return bed_heater
@@ -166,8 +167,8 @@ class DuetTemperatureSensor(DuetPrintSensorBase):
                 return -1
         else:
             json_path = SENSOR_TYPES["Tool Temperatures"]["json_path"]
-            tool_heater = self.coordinator.get_json_value_by_path(
-                json_path + "." + self._sensor_type
+            tool_heater = self.coordinator.get_sensor_state(
+                json_path + "." + self._sensor_type, "Tool Temperatures"
             )
             if tool_heater is not None:
                 return tool_heater
@@ -204,10 +205,12 @@ class DuetPrintJobPercentageSensor(DuetPrintSensorBase):
         """Return sensor state."""
         filament_info_json_path = SENSOR_TYPES["Progress"]["json_path"]
         job_printed_filament_json_path = SENSOR_TYPES["Filament Extrusion"]["json_path"]
-        job_printed_filament = self.coordinator.get_json_value_by_path(
-            job_printed_filament_json_path
+        job_printed_filament = self.coordinator.get_sensor_state(
+            job_printed_filament_json_path, "Filament Extrusion"
         )
-        filament_info = self.coordinator.get_json_value_by_path(filament_info_json_path)
+        filament_info = self.coordinator.get_sensor_state(
+            filament_info_json_path, "Progress"
+        )
 
         if filament_info:
             job_total_mm_of_filament = filament_info[0]
@@ -244,8 +247,8 @@ class DuetTimeRemainingSensor(DuetPrintSensorBase):
     def native_value(self):
         """Return sensor state."""
         time_remaining_json_path = SENSOR_TYPES["Time Remaining"]["json_path"]
-        print_file_time_left = self.coordinator.get_json_value_by_path(
-            time_remaining_json_path
+        print_file_time_left = self.coordinator.get_sensor_state(
+            time_remaining_json_path, self.sensor_name
         )
         if print_file_time_left is not None:
             return round(print_file_time_left / 60.0, 2)
@@ -274,8 +277,10 @@ class DuetPrintDurationSensor(DuetPrintSensorBase):
     @property
     def native_value(self):
         """Return sensor state."""
-        json_dict = self.coordinator.data["status"]
-        jobDuration = json_dict["job"]["duration"]
+        job_duration_json_path = SENSOR_TYPES[self.sensor_name]["json_path"]
+        jobDuration = self.coordinator.get_sensor_state(
+            job_duration_json_path, self.sensor_name
+        )
         if jobDuration is not None:
             return round(jobDuration / 60.0, 2)
         else:
@@ -303,9 +308,10 @@ class DuetPrintPositionSensor(DuetPrintSensorBase):
     @property
     def native_value(self):
         """Return sensor state."""
-        json_dict = self.coordinator.data["status"]
         position_json_path = SENSOR_TYPES["Position"]["json_path"]
-        axis_json = self.coordinator.get_json_value_by_path(position_json_path)
+        axis_json = self.coordinator.get_sensor_state(
+            position_json_path, self.sensor_name
+        )
         positions = [
             axis_json[i]["machinePosition"]
             for i in range(len(axis_json))
@@ -344,14 +350,13 @@ class DuetCurrentStateSensor(DuetPrintSensorBase):
     def native_value(self):
         """Return sensor state."""
         current_state_json_path = SENSOR_TYPES["Current State"]["json_path"]
-        current_state = self.coordinator.get_json_value_by_path(current_state_json_path)
+        current_state = self.coordinator.get_sensor_state(
+            current_state_json_path, self.sensor_name
+        )
         if current_state is not None and current_state in PRINTER_STATUS:
             return current_state
 
     @property
     def available(self) -> bool:
         """Return if entity is available."""
-        return (
-            self.coordinator.last_update_success
-            and self.coordinator.data["status"]["state"]["status"]
-        )
+        return self.coordinator.last_update_success

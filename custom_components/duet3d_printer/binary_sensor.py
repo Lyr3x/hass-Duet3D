@@ -73,7 +73,9 @@ class DuetPrintingSensor(DuetPrintSensorBase):
     def is_on(self):
         """Return sensor state."""
         current_state_json_path = SENSOR_TYPES["Current State"]["json_path"]
-        current_state = self.coordinator.get_json_value_by_path(current_state_json_path)
+        current_state = self.coordinator.get_sensor_state(
+            current_state_json_path, "Current State"
+        )
         if current_state is not None:
             if current_state in {"processing", "simulating"}:
                 return True
