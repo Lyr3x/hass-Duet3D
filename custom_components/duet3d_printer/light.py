@@ -17,7 +17,7 @@ import colorsys
 
 from . import DuetDataUpdateCoordinator
 
-from .const import CONF_NAME, ATTR_GCODE, DOMAIN, SERVICE_SEND_GCODE, CONF_LIGHT
+from .const import CONF_NAME, ATTR_GCODE, DOMAIN, SERVICE_SEND_GCODE, CONF_LIGHT, CONF_STANDALONE
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -35,6 +35,8 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ):
     """Set up the Duet3D light platform."""
+    if config_entry.data[CONF_STANDALONE]:
+        return
     lightIncluded = config_entry.data[CONF_LIGHT]
     if lightIncluded:
         coordinator: DuetDataUpdateCoordinator = hass.data[DOMAIN][
