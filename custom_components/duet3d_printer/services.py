@@ -51,8 +51,10 @@ def async_register_services(hass: HomeAssistant, config_entry: ConfigEntry) -> N
             async with aiohttp.ClientSession() as session:
                 with async_timeout.timeout(10):
                     if config_entry.data[CONF_STANDALONE]:
+                        params = {"gcode": call.data[ATTR_GCODE]}
+
                         response = await session.get(
-                            url, params=call.data[ATTR_GCODE], headers=headers, ssl=False
+                            url, params=params, headers=headers, ssl=False
                         )
                     else:
                         response = await session.post(
