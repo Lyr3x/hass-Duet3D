@@ -1,14 +1,17 @@
 """Config flow for Duet3D Printer integration."""
 from homeassistant import config_entries
 import logging
-from homeassistant.core import callback
+from homeassistant.core import callback, HomeAssistant
 import voluptuous as vol
 import homeassistant.helpers.config_validation as cv
 from homeassistant.const import CONF_HOST, CONF_PORT, CONF_SSL
 from homeassistant.data_entry_flow import FlowResult
 from typing import Any
 from homeassistant.helpers.typing import UNDEFINED
-
+import aiohttp
+import asyncio
+import async_timeout
+from aiohttp.client_exceptions import ClientError
 
 from .const import (
     CONF_NUMBER_OF_TOOLS,
@@ -23,6 +26,8 @@ from .const import (
     CONF_LIGHT,
     CONF_INTERVAL,
     CONF_STANDALONE,
+    CONF_JSON_HEADER,
+    CONF_TEXT_PLAIN_HEADER,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -57,6 +62,28 @@ def _schema_with_defaults(
     )
 
 
+async def test_sbc_connection(base_url) -> str:
+    connection_url = f"{base_url}/connect"
+    async with async_timeout.timeout(10):
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                connection_url, headers=CONF_JSON_HEADER
+            ) as response:
+                response.raise_for_status()
+                return response.status
+
+
+async def test_standalone_connection(base_url) -> str:
+    connection_url = f"{base_url}/rr_connect?password=''"
+    async with async_timeout.timeout(10):
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                connection_url, headers=CONF_JSON_HEADER
+            ) as response:
+                response.raise_for_status()
+                return response.status
+
+
 class Duet3dConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Config flow for Duet3DPrinter."""
 
@@ -66,26 +93,46 @@ class Duet3dConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_user(self, user_input=None):
         errors = {}
         if user_input is not None:
-            return self.async_create_entry(
-                title=f"{user_input[CONF_NAME]} ({user_input[CONF_HOST]})",
-                data={
-                    CONF_NAME: user_input[CONF_NAME],
-                    CONF_HOST: user_input[CONF_HOST],
-                    CONF_PORT: user_input[CONF_PORT],
-                    CONF_SSL: user_input[CONF_SSL],
-                    CONF_INTERVAL: user_input[CONF_INTERVAL],
-                    CONF_NUMBER_OF_TOOLS: user_input[CONF_NUMBER_OF_TOOLS],
-                    CONF_BED: user_input[CONF_BED],
-                    CONF_LIGHT: user_input[CONF_LIGHT],
-                    CONF_STANDALONE: user_input[CONF_STANDALONE],
-                    CONF_BASE_URL: "http://{0}:{1}{2}".format(
-                        CONF_HOST, CONF_PORT, CONF_SBC_API
-                    ),
-                    CONF_SBC_STATUS_PATH: CONF_SBC_STATUS_PATH,
-                    CONF_SBC_GCODE_PATH: CONF_SBC_GCODE_PATH,
-                },
+            # Check if host is already configured
+            await self.async_set_unique_id(user_input[CONF_HOST])
+            self._abort_if_unique_id_configured()
+
+            connection_url = "http{0}://{1}:{2}".format(
+                "s" if user_input[CONF_SSL] else "",
+                user_input[CONF_HOST],
+                user_input[CONF_PORT],
             )
-        
+
+            try:
+                if user_input[CONF_STANDALONE]:
+                    await test_standalone_connection(connection_url)
+                else:
+                    await test_sbc_connection(connection_url)
+            except (ClientError, asyncio.TimeoutError):
+                errors[CONF_HOST] = "cannot_connect"
+            except Exception:  # pylint: disable=broad-except
+                _LOGGER.exception("Unexpected exception")
+                errors[CONF_HOST] = "unknown"
+
+            if not errors:
+                return self.async_create_entry(
+                    title=f"{user_input[CONF_NAME]} ({user_input[CONF_HOST]})",
+                    data={
+                        CONF_NAME: user_input[CONF_NAME],
+                        CONF_HOST: user_input[CONF_HOST],
+                        CONF_PORT: user_input[CONF_PORT],
+                        CONF_SSL: user_input[CONF_SSL],
+                        CONF_INTERVAL: user_input[CONF_INTERVAL],
+                        CONF_NUMBER_OF_TOOLS: user_input[CONF_NUMBER_OF_TOOLS],
+                        CONF_BED: user_input[CONF_BED],
+                        CONF_LIGHT: user_input[CONF_LIGHT],
+                        CONF_STANDALONE: user_input[CONF_STANDALONE],
+                        CONF_BASE_URL: connection_url,
+                        CONF_SBC_STATUS_PATH: CONF_SBC_STATUS_PATH,
+                        CONF_SBC_GCODE_PATH: CONF_SBC_GCODE_PATH,
+                    },
+                )
+
         return self.async_show_form(
             step_id="user",
             data_schema=_schema_with_defaults(),

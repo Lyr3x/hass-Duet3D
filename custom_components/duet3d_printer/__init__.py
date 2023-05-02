@@ -28,13 +28,10 @@ from homeassistant.const import (
     CONF_HOST,
     CONF_NAME,
     CONF_PORT,
-    CONF_SENSORS,
-    CONF_BINARY_SENSORS,
     CONF_SSL,
     Platform,
 )
 from .const import (
-    DEFAULT_NAME,
     CONF_NUMBER_OF_TOOLS,
     CONF_SBC_STATUS_PATH,
     CONF_SBC_API,
@@ -42,9 +39,9 @@ from .const import (
     CONF_STANDALONE,
     CONF_BED,
     DOMAIN,
-    CONF_LIGHT,
     CONF_INTERVAL,
     SENSOR_TYPES,
+    CONF_JSON_HEADER
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -66,46 +63,6 @@ def ensure_valid_path(value):
     if value[-1] != "/":
         value += "/"
     return value
-
-
-SENSOR_SCHEMA = vol.Schema(
-    {
-        vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
-    }
-)
-
-BINARY_SENSOR_SCHEMA = vol.Schema(
-    {
-        vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
-    }
-)
-
-CONFIG_SCHEMA = vol.Schema(
-    {
-        DOMAIN: vol.All(
-            cv.ensure_list,
-            [
-                vol.Schema(
-                    {
-                        vol.Required(CONF_HOST): cv.string,
-                        vol.Optional(CONF_SSL, default=False): cv.boolean,
-                        vol.Optional(CONF_PORT, default=80): cv.port,
-                        vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
-                        vol.Required(CONF_NUMBER_OF_TOOLS, default=0): cv.positive_int,
-                        vol.Optional(CONF_BED, default=False): cv.boolean,
-                        vol.Optional(CONF_SENSORS, default={}): SENSOR_SCHEMA,
-                        vol.Optional(
-                            CONF_BINARY_SENSORS, default={}
-                        ): BINARY_SENSOR_SCHEMA,
-                        vol.Optional(CONF_LIGHT, default=False): cv.boolean,
-                    }
-                )
-            ],
-            has_all_unique_names,
-        ),
-    },
-    extra=vol.ALLOW_EXTRA,
-)
 
 
 async def options_update_listener(hass: HomeAssistant, config_entry: ConfigEntry):
@@ -159,7 +116,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     hass.data[DOMAIN][config_entry.entry_id] = {"coordinator": coordinator}
 
     # register Duet3D API services
-    async_register_services(hass, coordinator.base_url)
+    async_register_services(hass, config_entry)
 
     await hass.config_entries.async_forward_entry_setups(config_entry, PLATFORMS)
     config_entry.async_on_unload(config_entry.add_update_listener(update_listener))
@@ -193,17 +150,11 @@ class DuetDataUpdateCoordinator(DataUpdateCoordinator):
         self.data = {"status": None, "last_read_time": None}
         self.interval = interval
         self.config_entry = config_entry
-        self.headers = {"CONTENT_TYPE": "CONTENT_TYPE_JSON"}
         self.status_last_reading = {}
         self.printer_online = False
         self.status_error_logged = False
         self.number_of_tools = self.config_entry.data[CONF_NUMBER_OF_TOOLS]
         self.bed = self.config_entry.data[CONF_BED]
-        self.base_url = "http{0}://{1}:{2}".format(
-            "s" if self.config_entry.data[CONF_SSL] else "",
-            self.config_entry.data[CONF_HOST],
-            self.config_entry.data[CONF_PORT],
-        )
         if self.config_entry.data[CONF_STANDALONE]:
             self.status_api_url = "http{0}://{1}:{2}{3}".format(
                 "s" if self.config_entry.data[CONF_SSL] else "",
@@ -249,7 +200,7 @@ class DuetDataUpdateCoordinator(DataUpdateCoordinator):
         try:
             async with async_timeout.timeout(10):
                 async with aiohttp.ClientSession() as session:
-                    async with session.get(url, headers=self.headers) as response:
+                    async with session.get(url, headers=CONF_JSON_HEADER) as response:
                         response.raise_for_status()
                         data = await response.json()
                         self.status_last_reading = data
