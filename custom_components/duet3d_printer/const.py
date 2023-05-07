@@ -28,7 +28,7 @@ SENSOR_TYPES = {
         "icon": "mdi:thermometer",
     },
     "Tool Temperatures": {
-        "json_path": "status.heat.heaters", 
+        "json_path": "status.heat.heaters",
         "unit": "TEMP_CELSIUS",
         "icon": "mdi:thermometer",
     },
@@ -59,6 +59,7 @@ SENSOR_TYPES = {
         "unit": "mm,mm,mm",
         "icon": "mdi:axis-x-arrow",
     },
+    "Thumbnail": {"json_path": "status.job.file.thumbnails", "icon": "mdi:picture"},
 }
 
 PRINTER_STATUS = {
