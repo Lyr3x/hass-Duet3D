@@ -45,7 +45,7 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
-PLATFORMS = [Platform.BINARY_SENSOR, Platform.SENSOR, Platform.LIGHT]
+PLATFORMS = [Platform.BINARY_SENSOR, Platform.SENSOR, Platform.LIGHT, Platform.CAMERA]
 
 
 def has_all_unique_names(value):
@@ -172,6 +172,7 @@ class DuetDataUpdateCoordinator(DataUpdateCoordinator):
             )
         self.firmware_version = (None,)
         self.board_model = (None,)
+        self.status_data = {}
 
     def get_tools(self):
         """Get the list of tools that temperature is monitored on."""
@@ -226,21 +227,19 @@ class DuetDataUpdateCoordinator(DataUpdateCoordinator):
     async def _async_update_data(self):
         """Update printer data via API"""
         if self.config_entry.data[CONF_STANDALONE]:
-            status_data = {}
             for sensor_name, sensor_info in SENSOR_TYPES.items():
                 json_path = sensor_info["json_path"]
                 json_path = json_path.replace("status.", "")
                 sensor_data = await self.get_status(json_path)
-                if status_data is not None and "result" in sensor_data:
-                    status_data[sensor_name] = sensor_data["result"]
+                if self.status_data is not None and "result" in sensor_data:
+                    self.status_data[sensor_name] = sensor_data["result"]
                 else:
-                    status_data[sensor_name] = ""
-            return {"status": status_data, "last_read_time": dt_util.utcnow()}
+                    self.status_data[sensor_name] = ""
+            return {"status": self.status_data, "last_read_time": dt_util.utcnow()}
         else:
             printer_status = await self.get_status()
             if printer_status is not None:
                 return {"status": printer_status, "last_read_time": dt_util.utcnow()}
-        return None
 
     def get_sensor_state(self, json_path=None, sensor_name=None):
         if self.config_entry.data[CONF_STANDALONE]:
@@ -286,7 +285,7 @@ class DuetDataUpdateCoordinator(DataUpdateCoordinator):
             sw_version=self.firmware_version,
             configuration_url=str(configuration_url),
         )
-    
+
     def get_value_from_json(self, json_dict, end_point, sensor_type, group, tool):
         """Return the value for sensor_type from the JSON."""
         if end_point == "boards":

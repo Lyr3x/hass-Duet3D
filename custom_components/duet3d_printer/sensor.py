@@ -1,6 +1,5 @@
 """Support for monitoring Duet3D sensors."""
 import logging
-
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
@@ -11,7 +10,6 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import PERCENTAGE, UnitOfTemperature
-
 from . import DuetDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -60,7 +58,7 @@ async def async_setup_entry(
         bed_types = ["current", "active"]
         if not coordinator.data["status"]:
             return
-        
+
         new_tools = []
         for tool in tools:
             if tool == "bed":
@@ -177,13 +175,6 @@ class DuetTemperatureSensor(DuetPrintSensorBase):
                 return tool_heater[self._no_of_tool][self._sensor_type]
             else:
                 return -1
-
-    @property
-    def available(self) -> bool:
-        """Return if entity is available."""
-        return (
-            self.coordinator.last_update_success
-        )
 
 
 class DuetPrintJobPercentageSensor(DuetPrintSensorBase):
@@ -311,9 +302,7 @@ class DuetPrintPositionSensor(DuetPrintSensorBase):
     def native_value(self):
         """Return sensor state."""
         position_json_path = SENSOR_TYPES["Position"]["json_path"]
-        axis_json = self.coordinator.get_sensor_state(
-            position_json_path, "Position"
-        )
+        axis_json = self.coordinator.get_sensor_state(position_json_path, "Position")
         if axis_json is not None:
             positions = [
                 axis_json[i]["machinePosition"]
@@ -326,9 +315,7 @@ class DuetPrintPositionSensor(DuetPrintSensorBase):
     @property
     def available(self) -> bool:
         """Return if entity is available."""
-        return (
-            self.coordinator.last_update_success
-        )
+        return self.coordinator.last_update_success
 
 
 class DuetCurrentStateSensor(DuetPrintSensorBase):
