@@ -3,7 +3,7 @@ from homeassistant.const import (
     TEMP_CELSIUS,
 )
 
-DOMAIN = "duet3d_printer"
+DOMAIN = "duet3d"
 
 DEFAULT_NAME = "Duet3D"
 CONF_NAME = "name"

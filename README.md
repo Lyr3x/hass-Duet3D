@@ -42,7 +42,7 @@ Add the following to your Lovelace dashboard. Remember to update the entity name
 
 There is also the possibility to send GCodes directly with a Home Assistant service:
 ```yaml
-service: duet3d_printer.hevors_send_gcode
+service: duet3d.hevors_send_gcode
 data:
   gcode: G28
 ```

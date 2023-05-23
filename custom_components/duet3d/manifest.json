@@ -1,5 +1,5 @@
 {
-  "domain": "duet3d_printer",
+  "domain": "duet3d",
   "name": "Duet3D Printer",
   "codeowners": ["@Lyr3x"],
   "config_flow": true,
