@@ -4,35 +4,75 @@ import asyncio
 import logging
 import aiohttp
 import async_timeout
+import homeassistant.util.dt as dt_util
 
 import voluptuous as vol
 
 from homeassistant.core import HomeAssistant, ServiceCall
-
-from .const import ATTR_GCODE, SERVICE_SEND_GCODE, DOMAIN, CONF_GCODE_PATH, CONF_API
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import (
+    CONF_HOST,
+    CONF_PORT,
+    CONF_SSL,
+)
+from .const import (
+    ATTR_GCODE,
+    SERVICE_SEND_GCODE,
+    DOMAIN,
+    CONF_SBC_GCODE_PATH,
+    CONF_SBC_API,
+    CONF_STANDALONE,
+    CONF_STANDALONE_GCODE_PATH,
+    CONF_TEXT_PLAIN_HEADER,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
 
-def async_register_services(hass, baseUrl: str) -> None:
+def async_register_services(hass: HomeAssistant, config_entry: ConfigEntry) -> None:
     async def send_gcode(call: ServiceCall):
         """Send G-code to the printer."""
-        url = "{}{}{}".format(baseUrl, CONF_API, CONF_GCODE_PATH)
-        headers = {"Content-Type": "text/plain"}
-
+        if config_entry.data[CONF_STANDALONE]:
+            url = "http{0}://{1}:{2}{3}".format(
+                "s" if config_entry.data[CONF_SSL] else "",
+                config_entry.data[CONF_HOST],
+                config_entry.data[CONF_PORT],
+                CONF_STANDALONE_GCODE_PATH,
+            )
+        else:
+            url = "http{0}://{1}:{2}{3}{4}".format(
+                "s" if config_entry.data[CONF_SSL] else "",
+                config_entry.data[CONF_HOST],
+                config_entry.data[CONF_PORT],
+                CONF_SBC_API,
+                CONF_SBC_GCODE_PATH,
+            )
         try:
             async with aiohttp.ClientSession() as session:
                 with async_timeout.timeout(10):
-                    response = await session.post(
-                        url, data=call.data[ATTR_GCODE], headers=headers, ssl=False
-                    )
+                    if config_entry.data[CONF_STANDALONE]:
+                        params = {"gcode": call.data[ATTR_GCODE]}
+
+                        response = await session.get(
+                            url,
+                            params=params,
+                            headers=CONF_TEXT_PLAIN_HEADER,
+                            ssl=False,
+                        )
+                    else:
+                        response = await session.post(
+                            url,
+                            data=call.data[ATTR_GCODE],
+                            headers=CONF_TEXT_PLAIN_HEADER,
+                            ssl=False,
+                        )
                     response.raise_for_status()
+                    if response.status == 200:
+                        return await response.text()
         except (asyncio.TimeoutError, aiohttp.ClientError) as error:
             raise ConnectionError(
                 f"Error communicating with printer at {url}"
             ) from error
-        else:
-            return await response.text()
 
     if not hass.services.has_service(DOMAIN, SERVICE_SEND_GCODE):
         _LOGGER.debug("Registering service now!")

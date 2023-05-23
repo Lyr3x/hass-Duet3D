@@ -1,9 +1,7 @@
 {
   "domain": "duet3d_printer",
   "name": "Duet3D Printer",
-  "codeowners": [
-    "@Lyr3x"
-  ],
+  "codeowners": ["@Lyr3x"],
   "config_flow": true,
   "dependencies": [],
   "documentation": "https://github.com/Lyr3x/hass-Duet3D",

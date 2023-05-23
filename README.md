@@ -1,8 +1,7 @@
 # Duet3D integration for Home Assistant
 
-Code Based on the OctoPrint integration from Hass: [octoprint integration github](https://github.com/home-assistant/home-assistant/tree/dev/homeassistant/components/octoprint)
-
-This is a work in progress. Entities are created properly and values can be read from the `/machine/status` endpoint of your Duet board. The integration is meant to use with RRF 3.4.5 and onwards and is also compatible with the SBC mode.
+This is a work in progress. Entities are created properly and values can be read from the `rr_model` (standalone) or `/machine/status` (SBC) endpoint of your Duet board. The integration is meant to use with RRF 3.4.5 and onwards.
+Ensure to select the correct mode (Standalone vs SBC)
 
 ## Installation
 
@@ -48,3 +47,7 @@ data:
   gcode: G28
 ```
 Currently is not working to log the responsen from an e.g `M122`
+
+
+# Credits
+Code initially based on the OctoPrint integration: [octoprint integration github](https://github.com/home-assistant/home-assistant/tree/dev/homeassistant/components/octoprint)
