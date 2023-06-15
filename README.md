@@ -20,6 +20,21 @@ Ensure to select the correct mode (Standalone vs SBC)
 
 ### Config
 Add the Duet3D Printer integration via the UI. 
+1. Parameters => Integrations
+2. Add integration
+3. Search Duet
+4. Configure in UI the app
+    a. Name => Name you want to give to your printer
+    b. Host => Printer ip adress
+    c. Port => Printer port => Usually 80
+    d. Password => password, or empty if you don't have one , or if you are using SBC
+    e. Update frequency
+    f. Number of tools => Number of tools your printer has
+    g. Hoted => check if your printer has one
+    h. LEDd's installed => check if your printer has LED
+    i. Use standalone => check if your board is directly connected to your network. Uncheck if you are in SBC (duet board conencted to a rpi for example) see : [User manuel Duet](https://docs.duet3d.com/en/User_manual/Overview/Getting_started_Duet_3_MB6HC#:~:text=Standalone%20mode%20vs%20SBC%20mode%20The%20Duet%203,%28Duet%20Web%20Control%29%20etc%20work%20in%20both%20modes)
+
+
 
 Add the following to your Lovelace dashboard. Remember to update the entity names with those of your own printer (defined by the value of `duet3d-name`)
 ```yaml

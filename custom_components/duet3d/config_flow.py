@@ -4,7 +4,7 @@ import logging
 from homeassistant.core import callback, HomeAssistant
 import voluptuous as vol
 import homeassistant.helpers.config_validation as cv
-from homeassistant.const import CONF_HOST, CONF_PORT, CONF_SSL
+from homeassistant.const import CONF_HOST, CONF_PORT, CONF_SSL, CONF_PASSWORD
 from homeassistant.data_entry_flow import FlowResult
 from typing import Any
 from homeassistant.helpers.typing import UNDEFINED
@@ -38,6 +38,7 @@ def _schema_with_defaults(
     ssl=False,
     host="192.168.2.116",
     port=80,
+    password="",
     update_interval=30,
     number_of_tools=1,
     has_bed=True,
@@ -49,6 +50,7 @@ def _schema_with_defaults(
             vol.Required(CONF_NAME, default=name): str,
             vol.Required(CONF_SSL, default=ssl): bool,
             vol.Required(CONF_HOST, default=host): str,
+            vol.Optional(CONF_PASSWORD, default=password): str,
             vol.Required(CONF_PORT, default=port): cv.port,
             vol.Required(CONF_INTERVAL, default=update_interval): int,
             vol.Required(CONF_NUMBER_OF_TOOLS, default=number_of_tools): vol.Schema(
@@ -73,8 +75,8 @@ async def test_sbc_connection(base_url) -> str:
                 return response.status
 
 
-async def test_standalone_connection(base_url) -> str:
-    connection_url = f"{base_url}/rr_connect?password=''"
+async def test_standalone_connection(base_url, password) -> str:
+    connection_url = f"{base_url}/rr_connect?password={password}"
     async with async_timeout.timeout(10):
         async with aiohttp.ClientSession() as session:
             async with session.get(
@@ -105,7 +107,7 @@ class Duet3dConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
             try:
                 if user_input[CONF_STANDALONE]:
-                    await test_standalone_connection(connection_url)
+                    await test_standalone_connection(connection_url, user_input[CONF_PASSWORD])
                 else:
                     await test_sbc_connection(connection_url)
             except (ClientError, asyncio.TimeoutError):
@@ -121,6 +123,7 @@ class Duet3dConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         CONF_NAME: user_input[CONF_NAME],
                         CONF_HOST: user_input[CONF_HOST],
                         CONF_PORT: user_input[CONF_PORT],
+                        CONF_PASSWORD: user_input[CONF_PASSWORD],
                         CONF_SSL: user_input[CONF_SSL],
                         CONF_INTERVAL: user_input[CONF_INTERVAL],
                         CONF_NUMBER_OF_TOOLS: user_input[CONF_NUMBER_OF_TOOLS],
