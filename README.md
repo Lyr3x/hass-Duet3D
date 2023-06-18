@@ -3,6 +3,8 @@
 This is a work in progress. Entities are created properly and values can be read from the `rr_model` (standalone) or `/machine/status` (SBC) endpoint of your Duet board. The integration is meant to use with RRF 3.4.5 and onwards.
 Ensure to select the correct mode (Standalone vs SBC)
 
+
+
 ## Installation
 
 ### From HACS
@@ -34,7 +36,10 @@ Add the Duet3D Printer integration via the UI.
     - LEDd's installed => check if your printer has LED
     - Use standalone => check if your board is directly connected to your network. Uncheck if you are in SBC (duet board conencted to a rpi for example) see : [User manuel Duet](https://docs.duet3d.com/en/User_manual/Overview/Getting_started_Duet_3_MB6HC#:~:text=Standalone%20mode%20vs%20SBC%20mode%20The%20Duet%203,%28Duet%20Web%20Control%29%20etc%20work%20in%20both%20modes)
 
+## Lovelace
+A specific card exist for this integration: 
 
+https://github.com/repier37/ha-threedy-card
 
 Add the following to your Lovelace dashboard. Remember to update the entity names with those of your own printer (defined by the value of `duet3d-name`)
 ```yaml
