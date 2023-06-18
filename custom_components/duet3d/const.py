@@ -62,6 +62,9 @@ SENSOR_TYPES = {
         "icon": "mdi:axis-x-arrow",
     },
     "Thumbnail": {"json_path": "status.job.file.thumbnails", "icon": "mdi:picture"},
+    "Current Layer": {"json_path": "status.job.layer"},
+    "Total Layers": {"json_path": "status.job.file.numLayers"},
+    "File Name": {"json_path": "status.job.file.fileName"},
 }
 
 PRINTER_STATUS = {
