@@ -40,6 +40,7 @@ Add the Duet3D Printer integration via the UI.
 A specific card exist for this integration: 
 
 [Duet integration card](https://github.com/repier37/ha-threedy-card)
+
 ![Featured](https://github.com/repier37/ha-threedy-card/raw/master/screenshots/active.png)
 
 
