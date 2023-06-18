@@ -1,5 +1,6 @@
 """Support for monitoring Duet3D sensors."""
 import logging
+import os
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
@@ -102,6 +103,9 @@ async def async_setup_entry(
         DuetPrintDurationSensor(coordinator, "Time Elapsed", device_id),
         DuetPrintPositionSensor(coordinator, "Position (X,Y,Z)", device_id),
         DuetCurrentStateSensor(coordinator, "Current State", device_id),
+        DuetCurrentLayerSensor(coordinator, "Current Layer", device_id),
+        DuetTotalLayersSensor(coordinator, "Total Layers", device_id),
+        DuetFileNameSensor(coordinator, "File Name", device_id),
     ]
     async_add_entities(entities)
 
@@ -345,6 +349,103 @@ class DuetCurrentStateSensor(DuetPrintSensorBase):
         )
         if current_state is not None and current_state in PRINTER_STATUS:
             return current_state
+
+    @property
+    def available(self) -> bool:
+        """Return if entity is available."""
+        return self.coordinator.last_update_success
+    
+class DuetCurrentLayerSensor(DuetPrintSensorBase):
+    """Representation of an Duet3D sensor."""
+
+    _attr_icon = "mdi:layers"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(
+        self,
+        coordinator: DuetDataUpdateCoordinator,
+        sensor_name: str,
+        device_id: str,
+    ) -> None:
+        """Initialize a new Duet3D sensor."""
+        super().__init__(
+            coordinator,
+            sensor_name,
+            f"{sensor_name}-{device_id}",
+        )
+
+    @property
+    def native_value(self):
+        """Return sensor state."""
+        current_layer_json_path = SENSOR_TYPES["Current Layer"]["json_path"]
+        current_layer = self.coordinator.get_sensor_state(
+            current_layer_json_path, self.sensor_name
+        )
+        return current_layer
+
+    @property
+    def available(self) -> bool:
+        """Return if entity is available."""
+        return self.coordinator.last_update_success
+
+class DuetTotalLayersSensor(DuetPrintSensorBase):
+    """Representation of an Duet3D sensor."""
+    _attr_icon = "mdi:layers-triple"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(
+        self,
+        coordinator: DuetDataUpdateCoordinator,
+        sensor_name: str,
+        device_id: str,
+    ) -> None:
+        """Initialize a new Duet3D sensor."""
+        super().__init__(
+            coordinator,
+            sensor_name,
+            f"{sensor_name}-{device_id}",
+        )
+
+    @property
+    def native_value(self):
+        """Return sensor state."""
+        total_layer_json_path = SENSOR_TYPES["Total Layers"]["json_path"]
+        total_layer = self.coordinator.get_sensor_state(
+            total_layer_json_path, self.sensor_name
+        )
+        return total_layer
+
+    @property
+    def available(self) -> bool:
+        """Return if entity is available."""
+        return self.coordinator.last_update_success
+    
+class DuetFileNameSensor(DuetPrintSensorBase):
+    """Representation of an Duet3D sensor."""
+    _attr_icon = "mdi:file"
+
+    def __init__(
+        self,
+        coordinator: DuetDataUpdateCoordinator,
+        sensor_name: str,
+        device_id: str,
+    ) -> None:
+        """Initialize a new Duet3D sensor."""
+        super().__init__(
+            coordinator,
+            sensor_name,
+            f"{sensor_name}-{device_id}",
+        )
+
+    @property
+    def native_value(self):
+        """Return sensor state."""
+        file_name_json_path = SENSOR_TYPES["File Name"]["json_path"]
+        file_path = self.coordinator.get_sensor_state(
+            file_name_json_path, self.sensor_name
+        )
+        file_name = os.path.splitext(os.path.basename(file_path))[0]
+        return file_name
 
     @property
     def available(self) -> bool:
