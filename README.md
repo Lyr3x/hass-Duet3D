@@ -39,26 +39,9 @@ Add the Duet3D Printer integration via the UI.
 ## Lovelace
 A specific card exist for this integration: 
 
-https://github.com/repier37/ha-threedy-card
+[Duet integration card](https://github.com/repier37/ha-threedy-card)
+![Featured](https://github.com/repier37/ha-threedy-card/raw/master/screenshots/active.png)
 
-Add the following to your Lovelace dashboard. Remember to update the entity names with those of your own printer (defined by the value of `duet3d-name`)
-```yaml
-- card:
-    cards:
-      - type: glance
-        entities:
-          - entity: sensor.<name>_current_toolbed_temp
-            name: Bed
-          - entity: sensor.<name>_current_tool1_temp
-            name: Tool
-          - entity: sensor.<name>_current_state
-            name: Status
-    type: horizontal-stack
-  conditions:
-    - entity: switch.<name>
-      state: 'on'
-  type: conditional
-```
 
 There is also the possibility to send GCodes directly with a Home Assistant service:
 ```yaml
