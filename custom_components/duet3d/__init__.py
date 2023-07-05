@@ -30,6 +30,7 @@ from homeassistant.const import (
     CONF_PORT,
     CONF_SSL,
     Platform,
+    CONF_PASSWORD
 )
 from .const import (
     CONF_NUMBER_OF_TOOLS,
@@ -155,13 +156,19 @@ class DuetDataUpdateCoordinator(DataUpdateCoordinator):
         self.status_error_logged = False
         self.number_of_tools = self.config_entry.data[CONF_NUMBER_OF_TOOLS]
         self.bed = self.config_entry.data[CONF_BED]
-        if self.config_entry.data[CONF_STANDALONE]:
-            self.status_api_url = "http{0}://{1}:{2}{3}".format(
+        self.base_url = "http{0}://{1}:{2}".format(
                 "s" if self.config_entry.data[CONF_SSL] else "",
                 config_entry.data[CONF_HOST],
-                config_entry.data[CONF_PORT],
-                CONF_STANDALONE_API,
-            )
+                config_entry.data[CONF_PORT]
+        )
+        
+        if self.config_entry.data[CONF_STANDALONE]:
+            self.status_api_url = self.base_url+CONF_STANDALONE_API
+            #if standalone and has password
+            password = config_entry.data[CONF_PASSWORD]
+            if(len(password)>0):
+                self.identification_path = "/rr_connect?password=" + password
+                _LOGGER.warning("connection path: " + self.identification_path)
         else:
             self.status_api_url = "http{0}://{1}:{2}{3}{4}".format(
                 "s" if self.config_entry.data[CONF_SSL] else "",
@@ -173,6 +180,7 @@ class DuetDataUpdateCoordinator(DataUpdateCoordinator):
         self.firmware_version = (None,)
         self.board_model = (None,)
         self.status_data = {}
+
 
     def get_tools(self):
         """Get the list of tools that temperature is monitored on."""
@@ -191,12 +199,27 @@ class DuetDataUpdateCoordinator(DataUpdateCoordinator):
 
     async def get_status(self, key=None):
         """Send a get request, and return the response as a dict."""
+        
+        
         # Only query the API at most every 30 seconds
         if self.config_entry.data[CONF_STANDALONE]:
             url = f"{self.status_api_url}?key={key}"
         else:
             url = self.status_api_url
         _LOGGER.debug("URL: %s", url)
+
+        # send identification if required
+        try:
+            if (len(self.config_entry.data[CONF_PASSWORD])>0) :
+                connection_url = f"{self.base_url}{self.identification_path}"
+                async with async_timeout.timeout(10):
+                    async with aiohttp.ClientSession() as session:
+                        async with session.get(
+                            connection_url, headers=CONF_JSON_HEADER
+                        ) as response:
+                            response.raise_for_status()
+        except:
+                _LOGGER.error("Could not identify user to 3d printer")
 
         try:
             async with async_timeout.timeout(10):

@@ -3,6 +3,8 @@
 This is a work in progress. Entities are created properly and values can be read from the `rr_model` (standalone) or `/machine/status` (SBC) endpoint of your Duet board. The integration is meant to use with RRF 3.4.5 and onwards.
 Ensure to select the correct mode (Standalone vs SBC)
 
+
+
 ## Installation
 
 ### From HACS
@@ -20,25 +22,27 @@ Ensure to select the correct mode (Standalone vs SBC)
 
 ### Config
 Add the Duet3D Printer integration via the UI. 
+1. Parameters => Integrations
+2. Add integration
+3. Search Duet
+4. Configure in UI the app
+    - Name => Name you want to give to your printer
+    - Host => Printer ip adress
+    - Port => Printer port => Usually 80
+    - Password => password, or empty if you don't have one , or if you are using SBC
+    - Update frequency
+    - Number of tools => Number of tools your printer has
+    - Hot bed => check if your printer has one
+    - LEDd's installed => check if your printer has LED
+    - Use standalone => check if your board is directly connected to your network. Uncheck if you are in SBC (duet board conencted to a rpi for example) see : [User manuel Duet](https://docs.duet3d.com/en/User_manual/Overview/Getting_started_Duet_3_MB6HC#:~:text=Standalone%20mode%20vs%20SBC%20mode%20The%20Duet%203,%28Duet%20Web%20Control%29%20etc%20work%20in%20both%20modes)
 
-Add the following to your Lovelace dashboard. Remember to update the entity names with those of your own printer (defined by the value of `duet3d-name`)
-```yaml
-- card:
-    cards:
-      - type: glance
-        entities:
-          - entity: sensor.<name>_current_toolbed_temp
-            name: Bed
-          - entity: sensor.<name>_current_tool1_temp
-            name: Tool
-          - entity: sensor.<name>_current_state
-            name: Status
-    type: horizontal-stack
-  conditions:
-    - entity: switch.<name>
-      state: 'on'
-  type: conditional
-```
+## Lovelace
+A specific card exist for this integration: 
+
+[Duet integration card](https://github.com/repier37/ha-threedy-card)
+
+![Featured](https://github.com/repier37/ha-threedy-card/raw/master/screenshots/active.png)
+
 
 There is also the possibility to send GCodes directly with a Home Assistant service:
 ```yaml
