@@ -1,6 +1,6 @@
 """Constants for the Duet3D integration."""
 from homeassistant.const import (
-    TEMP_CELSIUS,
+    UnitOfTemperature.CELSIUS,
 )
 
 DOMAIN = "duet3d"
