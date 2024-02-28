@@ -1,6 +1,6 @@
 """Constants for the Duet3D integration."""
 from homeassistant.const import (
-    TEMP_CELSIUS,
+    UnitOfTemperature,
 )
 
 DOMAIN = "duet3d"
@@ -26,12 +26,12 @@ CONF_INTERVAL = "update_interval"
 SENSOR_TYPES = {
     "Bed Temperatures": {
         "json_path": "status.heat.heaters[0]",
-        "unit": "TEMP_CELSIUS",
+        "unit": "UnitOfTemperature.CELSIUS",
         "icon": "mdi:thermometer",
     },
     "Tool Temperatures": {
         "json_path": "status.heat.heaters",
-        "unit": "TEMP_CELSIUS",
+        "unit": "UnitOfTemperature.CELSIUS",
         "icon": "mdi:thermometer",
     },
     "Current State": {
