@@ -1,6 +1,5 @@
 """Support for monitoring Duet 3D printers."""
 import logging
-import requests
 import voluptuous as vol
 import aiohttp
 import asyncio
@@ -36,13 +35,16 @@ from .const import (
     CONF_NUMBER_OF_TOOLS,
     CONF_SBC_STATUS_PATH,
     CONF_SBC_API,
+    CONF_SBC_GCODE_PATH,
     CONF_STANDALONE_API,
+    CONF_STANDALONE_GCODE_PATH,
     CONF_STANDALONE,
     CONF_BED,
     DOMAIN,
     CONF_INTERVAL,
     SENSOR_TYPES,
-    CONF_JSON_HEADER
+    CONF_JSON_HEADER,
+    CONF_TEXT_PLAIN_HEADER,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -81,43 +83,40 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     if DOMAIN not in hass.data:
         hass.data[DOMAIN] = {}
 
+    coordinator = DuetDataUpdateCoordinator(
+        hass, config_entry, config_entry.data[CONF_INTERVAL]
+    )
+
     try:
-        coordinator = DuetDataUpdateCoordinator(
-            hass, config_entry, config_entry.data[CONF_INTERVAL]
-        )
+        await coordinator.async_config_entry_first_refresh()
+    except ConfigEntryNotReady:
+        await coordinator.async_close_session()
+        raise
+
+    # Extract firmware and board info from the first successful data fetch
+    try:
         if config_entry.data[CONF_STANDALONE]:
             _LOGGER.info("Using standalone mode")
-            try:
-                firmwareVersion = await coordinator.get_status(
-                    "boards[].firmwareVersion"
-                )
-                coordinator.firmware_version = firmwareVersion["result"]
-
-                board_model = await coordinator.get_status("boards[].name")
-                coordinator.board_model = board_model["result"]
-            except (KeyError, TypeError):
-                _LOGGER.error("Failed to extract data for sensor")
+            fw_data = await coordinator.get_status("boards[].firmwareVersion")
+            coordinator.firmware_version = fw_data.get("result")
+            board_data = await coordinator.get_status("boards[].name")
+            coordinator.board_model = board_data.get("result")
         else:
-            coordinator.data["status"] = await coordinator.get_status()
-            coordinator.firmware_version = coordinator.get_value_from_json(
-                coordinator.data["status"],
-                "boards",
-                "software",
-                "firmwareVersion",
-                None,
-            )
-            coordinator.board_model = coordinator.get_value_from_json(
-                coordinator.data["status"], "boards", "software", "model", None
-            )
+            status = coordinator.data.get("status")
+            if status:
+                coordinator.firmware_version = coordinator.get_value_from_json(
+                    status, "boards", "software", "firmwareVersion", None
+                )
+                coordinator.board_model = coordinator.get_value_from_json(
+                    status, "boards", "software", "model", None
+                )
+    except (KeyError, TypeError):
+        _LOGGER.error("Failed to extract firmware/board data")
 
-    except requests.exceptions.RequestException as conn_err:
-        _LOGGER.error("Error setting up Duet API: %r", conn_err)
-        coordinator.printer_online = False
-        raise ConfigEntryNotReady from conn_err
     hass.data[DOMAIN][config_entry.entry_id] = {"coordinator": coordinator}
 
-    # register Duet3D API services
-    async_register_services(hass, config_entry)
+    # register Duet3D API services (pass coordinator for auth)
+    async_register_services(hass, config_entry, coordinator)
 
     await hass.config_entries.async_forward_entry_setups(config_entry, PLATFORMS)
     config_entry.async_on_unload(config_entry.add_update_listener(update_listener))
@@ -131,8 +130,10 @@ async def update_listener(hass, entry):
 
 async def async_unload_entry(hass, entry):
     """Unload a config entry."""
+    coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
+        await coordinator.async_close_session()
         del hass.data[DOMAIN][entry.entry_id]
     return unload_ok
 
@@ -157,38 +158,74 @@ class DuetDataUpdateCoordinator(DataUpdateCoordinator):
         self.number_of_tools = self.config_entry.data[CONF_NUMBER_OF_TOOLS]
         self.bed = self.config_entry.data[CONF_BED]
         self.base_url = "http{0}://{1}:{2}".format(
-                "s" if self.config_entry.data[CONF_SSL] else "",
-                config_entry.data[CONF_HOST],
-                config_entry.data[CONF_PORT]
+            "s" if self.config_entry.data[CONF_SSL] else "",
+            config_entry.data[CONF_HOST],
+            config_entry.data[CONF_PORT],
         )
-        
+
         if self.config_entry.data[CONF_STANDALONE]:
-            self.status_api_url = self.base_url+CONF_STANDALONE_API
-            #if standalone and has password
-            password = config_entry.data[CONF_PASSWORD]
-            if(len(password)>0):
-                self.identification_path = "/rr_connect?password=" + password
-                _LOGGER.warning("connection path: " + self.identification_path)
+            self.status_api_url = self.base_url + CONF_STANDALONE_API
         else:
-            self.status_api_url = "http{0}://{1}:{2}{3}{4}".format(
-                "s" if self.config_entry.data[CONF_SSL] else "",
-                config_entry.data[CONF_HOST],
-                config_entry.data[CONF_PORT],
+            self.status_api_url = "{0}{1}{2}".format(
+                self.base_url,
                 CONF_SBC_API,
                 CONF_SBC_STATUS_PATH,
             )
-        self.firmware_version = (None,)
-        self.board_model = (None,)
+
+        self._password = config_entry.data.get(CONF_PASSWORD, "")
+        self._session: aiohttp.ClientSession | None = None
+        self._authenticated = False
+        self.firmware_version = None
+        self.board_model = None
         self.status_data = {}
 
+    async def _get_session(self) -> aiohttp.ClientSession:
+        """Get or create a persistent aiohttp session."""
+        if self._session is None or self._session.closed:
+            self._session = aiohttp.ClientSession()
+            self._authenticated = False
+        return self._session
+
+    async def _ensure_authenticated(self):
+        """Authenticate with the printer if using standalone mode with a password."""
+        if not self.config_entry.data[CONF_STANDALONE]:
+            return
+        if not self._password:
+            return
+        if self._authenticated:
+            return
+
+        session = await self._get_session()
+        connect_url = f"{self.base_url}/rr_connect?password={self._password}"
+        try:
+            async with async_timeout.timeout(10):
+                async with session.get(connect_url, headers=CONF_JSON_HEADER) as resp:
+                    resp.raise_for_status()
+                    data = await resp.json()
+                    if data.get("err", 1) == 0:
+                        self._authenticated = True
+                        _LOGGER.debug("Authenticated with printer")
+                    else:
+                        _LOGGER.error(
+                            "Authentication failed (err=%s)", data.get("err")
+                        )
+        except Exception as exc:
+            _LOGGER.error("Could not authenticate with printer: %s", exc)
+            self._authenticated = False
+
+    async def async_close_session(self):
+        """Close the aiohttp session."""
+        if self._session and not self._session.closed:
+            await self._session.close()
+            self._session = None
+            self._authenticated = False
 
     def get_tools(self):
         """Get the list of tools that temperature is monitored on."""
         tools = []
         if self.number_of_tools > 0:
-            # tools start at 1 bed is 0
             for tool_number in range(1, self.number_of_tools + 1):
-                tools.append(tool_number)  #'tool' + str(tool_number))
+                tools.append(tool_number)
         if self.bed:
             tools.append("bed")
         if not self.bed and self.number_of_tools == 0:
@@ -199,47 +236,39 @@ class DuetDataUpdateCoordinator(DataUpdateCoordinator):
 
     async def get_status(self, key=None):
         """Send a get request, and return the response as a dict."""
-        
-        
-        # Only query the API at most every 30 seconds
         if self.config_entry.data[CONF_STANDALONE]:
             url = f"{self.status_api_url}?key={key}"
         else:
             url = self.status_api_url
         _LOGGER.debug("URL: %s", url)
 
-        # send identification if required
-        try:
-            if (len(self.config_entry.data[CONF_PASSWORD])>0) :
-                connection_url = f"{self.base_url}{self.identification_path}"
-                async with async_timeout.timeout(10):
-                    async with aiohttp.ClientSession() as session:
-                        async with session.get(
-                            connection_url, headers=CONF_JSON_HEADER
-                        ) as response:
-                            response.raise_for_status()
-        except:
-                _LOGGER.error("Could not identify user to 3d printer")
+        await self._ensure_authenticated()
+        session = await self._get_session()
 
         try:
             async with async_timeout.timeout(10):
-                async with aiohttp.ClientSession() as session:
-                    async with session.get(url, headers=CONF_JSON_HEADER) as response:
+                async with session.get(url, headers=CONF_JSON_HEADER) as response:
+                    if response.status == 401:
+                        # Session expired, re-authenticate and retry once
+                        _LOGGER.debug("Session expired, re-authenticating")
+                        self._authenticated = False
+                        await self._ensure_authenticated()
+                        async with session.get(
+                            url, headers=CONF_JSON_HEADER
+                        ) as retry_resp:
+                            retry_resp.raise_for_status()
+                            data = await retry_resp.json()
+                    else:
                         response.raise_for_status()
                         data = await response.json()
-                        self.status_last_reading = data
-                        self.printer_online = True
-                        if self.printer_online:
-                            self.status_error_logged = False
-                        return data
+
+                    self.status_last_reading = data
+                    self.printer_online = True
+                    self.status_error_logged = False
+                    return data
         except aiohttp.ClientConnectorError as conn_exc:
-            log_string = "Failed to connect to Duet3D board" + "  Error: %s" % (
-                conn_exc
-            )
-            # Only log the first failure
-            log_string = "Endpoint: status " + log_string
             if not self.status_error_logged:
-                _LOGGER.error(log_string)
+                _LOGGER.error("Failed to connect to Duet3D board: %s", conn_exc)
                 self.status_error_logged = True
             self.printer_online = False
             raise ConfigEntryNotReady(conn_exc) from conn_exc
@@ -247,14 +276,45 @@ class DuetDataUpdateCoordinator(DataUpdateCoordinator):
             self.printer_online = False
             raise UpdateFailed(timeout_exc) from timeout_exc
 
+    async def send_gcode(self, gcode: str) -> str | None:
+        """Send G-code to the printer (used by service handler)."""
+        await self._ensure_authenticated()
+        session = await self._get_session()
+
+        if self.config_entry.data[CONF_STANDALONE]:
+            url = f"{self.base_url}{CONF_STANDALONE_GCODE_PATH}"
+            params = {"gcode": gcode}
+            async with async_timeout.timeout(10):
+                async with session.get(
+                    url, params=params, headers=CONF_TEXT_PLAIN_HEADER
+                ) as response:
+                    if response.status == 401:
+                        self._authenticated = False
+                        await self._ensure_authenticated()
+                        async with session.get(
+                            url, params=params, headers=CONF_TEXT_PLAIN_HEADER
+                        ) as retry_resp:
+                            retry_resp.raise_for_status()
+                            return await retry_resp.text()
+                    response.raise_for_status()
+                    return await response.text()
+        else:
+            url = f"{self.base_url}{CONF_SBC_API}{CONF_SBC_GCODE_PATH}"
+            async with async_timeout.timeout(10):
+                async with session.post(
+                    url, data=gcode, headers=CONF_TEXT_PLAIN_HEADER
+                ) as response:
+                    response.raise_for_status()
+                    return await response.text()
+
     async def _async_update_data(self):
-        """Update printer data via API"""
+        """Update printer data via API."""
         if self.config_entry.data[CONF_STANDALONE]:
             for sensor_name, sensor_info in SENSOR_TYPES.items():
                 json_path = sensor_info["json_path"]
                 json_path = json_path.replace("status.", "")
                 sensor_data = await self.get_status(json_path)
-                if self.status_data is not None and "result" in sensor_data:
+                if sensor_data is not None and "result" in sensor_data:
                     self.status_data[sensor_name] = sensor_data["result"]
                 else:
                     self.status_data[sensor_name] = ""
@@ -274,17 +334,12 @@ class DuetDataUpdateCoordinator(DataUpdateCoordinator):
     def get_json_value_by_path(self, json_path):
         if json_path is None:
             raise UpdateFailed()
-        # convert the JSON response to a dictionary object
         json_data = self.data
-        # split the JSON path on period separator and iterate over the path elements
         for path_element in json_path.split("."):
-            # if the current path element contains an array index
             if "[" in path_element:
                 list_name, index_str = path_element[:-1].split("[")
-                # get the value at the specified index in the list
                 json_data = json_data[list_name][int(index_str)]
             else:
-                # otherwise, access the object property with the current path element
                 if path_element not in json_data:
                     return None
                 json_data = json_data[path_element]

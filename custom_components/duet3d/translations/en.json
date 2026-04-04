@@ -11,6 +11,8 @@
           "number_of_tools": "Number of Tools",
           "bed": "Hotbed installed",
           "light": "LED's installed",
+          "led_strip_index": "LED strip index (default 0)",
+          "led_count": "Number of LEDs",
           "standalone": "Use standalone mode",
           "ssl": "Use SSL?"
         }
@@ -35,6 +37,8 @@
           "update_interval": "Update interval (seconds)",
           "bed": "Hotbed installed",
           "light": "LED's installed",
+          "led_strip_index": "LED strip index (default 0)",
+          "led_count": "Number of LEDs",
           "standalone": "Use standalone mode"
         }
       }

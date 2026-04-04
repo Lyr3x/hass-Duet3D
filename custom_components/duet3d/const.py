@@ -22,6 +22,8 @@ CONF_STANDALONE_GCODE_PATH = "/rr_gcode"
 CONF_BASE_URL = "base_url"
 SERVICE_SEND_GCODE = "send_code"
 CONF_INTERVAL = "update_interval"
+CONF_LED_STRIP_INDEX = "led_strip_index"
+CONF_LED_COUNT = "led_count"
 
 SENSOR_TYPES = {
     "Bed Temperatures": {
@@ -41,6 +43,11 @@ SENSOR_TYPES = {
     },
     "Time Remaining": {
         "json_path": "status.job.timesLeft.file",
+        "unit": "min",
+        "icon": "mdi:clock-end",
+    },
+    "Slicer Time Remaining": {
+        "json_path": "status.job.timesLeft.slicer",
         "unit": "min",
         "icon": "mdi:clock-end",
     },
@@ -80,5 +87,6 @@ PRINTER_STATUS = {
     "changingTool",
     "off",
     "paused",
-    "pausing" "updating",
+    "pausing",
+    "updating",
 }

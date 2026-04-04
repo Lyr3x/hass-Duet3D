@@ -18,7 +18,7 @@ from homeassistant.config_entries import ConfigEntry
 
 from . import DuetDataUpdateCoordinator
 
-from .const import CONF_NAME, ATTR_GCODE, DOMAIN, SERVICE_SEND_GCODE, CONF_LIGHT, CONF_STANDALONE
+from .const import CONF_NAME, DOMAIN, CONF_LIGHT, CONF_LED_STRIP_INDEX, CONF_LED_COUNT
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -36,8 +36,6 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ):
     """Set up the Duet3D light platform."""
-    if config_entry.data[CONF_STANDALONE]:
-        return
     lightIncluded = config_entry.data[CONF_LIGHT]
     if lightIncluded:
         coordinator: DuetDataUpdateCoordinator = hass.data[DOMAIN][
@@ -45,8 +43,10 @@ async def async_setup_entry(
         ]["coordinator"]
         device_id = config_entry.entry_id
         assert device_id is not None
+        strip_index = config_entry.data.get(CONF_LED_STRIP_INDEX, 0)
+        led_count = config_entry.data.get(CONF_LED_COUNT, 1)
         entities: list[LightEntity] = [
-            Duet3DLight(coordinator, "LED", device_id),
+            Duet3DLight(coordinator, "LED", device_id, strip_index, led_count),
         ]
         async_add_entities(entities)
 
@@ -77,13 +77,22 @@ class Duet3DLight(Duet3DLightBase):
     _attr_should_poll = False
 
     def __init__(
-        self, coordinator: DuetDataUpdateCoordinator, name: str, device_id: str
+        self,
+        coordinator: DuetDataUpdateCoordinator,
+        name: str,
+        device_id: str,
+        strip_index: int = 0,
+        led_count: int = 1,
     ) -> None:
         super().__init__(coordinator, name, f"{name}-{device_id}")
         self._state = False
         self._brightness = 255
         self._rgb_color = (255, 255, 255)
         self._last_brightness = self._brightness
+        self._strip_index = strip_index
+        self._led_count = led_count
+        self._attr_color_mode = ColorMode.RGB
+        self._attr_supported_color_modes = {ColorMode.RGB}
 
     @property
     def name(self):
@@ -112,60 +121,47 @@ class Duet3DLight(Duet3DLightBase):
     async def async_turn_on(self, **kwargs):
         self._state = True
 
-        # Set the brightness if it was passed in the service call
         if ATTR_BRIGHTNESS in kwargs:
             self._brightness = kwargs[ATTR_BRIGHTNESS]
             self._last_brightness = self._brightness
 
-        # Set the RGB color if it was passed in the service call
         if ATTR_HS_COLOR in kwargs:
             self._rgb_color = self._hs_to_rgb(kwargs[ATTR_HS_COLOR])
 
-        # Use the last brightness value if it was not passed in the service call
         if ATTR_BRIGHTNESS not in kwargs:
             self._brightness = self._last_brightness
 
-        # Build the M150 GCode command
-        command = "M150 R{} U{} B{} P{}".format(
-            self._rgb_color[0], self._rgb_color[1], self._rgb_color[2], self._brightness
+        # Build the M150 GCode command (RRF 3.5+ compatible with E param)
+        command = "M150 E{strip} R{r} U{g} B{b} P{p} S{s}".format(
+            strip=self._strip_index,
+            r=self._rgb_color[0],
+            g=self._rgb_color[1],
+            b=self._rgb_color[2],
+            p=self._brightness,
+            s=self._led_count,
         )
 
-        # Call the send_code service to send the M150 GCode to the Duet3D board
         try:
-            await self.hass.services.async_call(
-                DOMAIN,
-                SERVICE_SEND_GCODE,
-                {
-                    ATTR_GCODE: command,
-                },
-            )
+            await self.coordinator.send_gcode(command)
         except Exception as e:
-            _LOGGER.error("Error calling send_gcode service: %s", e)
+            _LOGGER.error("Error sending LED command: %s", e)
 
-        # Update the light state in Home Assistant
         self.async_schedule_update_ha_state()
 
     async def async_turn_off(self, **kwargs):
         """Turn the light off."""
         self._state = False
-        # Save the last set brightness before turning the light off
         self._last_brightness = self._brightness
         self._brightness = 0
 
-        # Build the M150 GCode command to turn the light off
-        command = "M150 R0 U0 B0 P0"
+        command = "M150 E{strip} R0 U0 B0 P0 S{s}".format(
+            strip=self._strip_index,
+            s=self._led_count,
+        )
 
-        # Call the send_code service to send the M150 GCode to the Duet3D board
         try:
-            await self.hass.services.async_call(
-                DOMAIN,
-                SERVICE_SEND_GCODE,
-                {
-                    ATTR_GCODE: command,
-                },
-            )
+            await self.coordinator.send_gcode(command)
         except Exception as e:
-            _LOGGER.error("Error calling send_gcode service: %s", e)
+            _LOGGER.error("Error sending LED command: %s", e)
 
-        # Update the light state in Home Assistant
         self.async_schedule_update_ha_state()

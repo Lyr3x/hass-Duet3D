@@ -24,6 +24,8 @@ from .const import (
     CONF_SBC_STATUS_PATH,
     CONF_BASE_URL,
     CONF_LIGHT,
+    CONF_LED_STRIP_INDEX,
+    CONF_LED_COUNT,
     CONF_INTERVAL,
     CONF_STANDALONE,
     CONF_JSON_HEADER,
@@ -43,6 +45,8 @@ def _schema_with_defaults(
     number_of_tools=1,
     has_bed=True,
     has_light=False,
+    led_strip_index=0,
+    led_count=1,
     use_standalone=True,
 ):
     return vol.Schema(
@@ -58,6 +62,8 @@ def _schema_with_defaults(
             ),
             vol.Optional(CONF_BED, default=has_bed): bool,
             vol.Optional(CONF_LIGHT, default=has_light): bool,
+            vol.Optional(CONF_LED_STRIP_INDEX, default=led_strip_index): int,
+            vol.Optional(CONF_LED_COUNT, default=led_count): int,
             vol.Optional(CONF_STANDALONE, default=use_standalone): bool,
         },
         extra=vol.ALLOW_EXTRA,
@@ -129,6 +135,8 @@ class Duet3dConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         CONF_NUMBER_OF_TOOLS: user_input[CONF_NUMBER_OF_TOOLS],
                         CONF_BED: user_input[CONF_BED],
                         CONF_LIGHT: user_input[CONF_LIGHT],
+                        CONF_LED_STRIP_INDEX: user_input.get(CONF_LED_STRIP_INDEX, 0),
+                        CONF_LED_COUNT: user_input.get(CONF_LED_COUNT, 1),
                         CONF_STANDALONE: user_input[CONF_STANDALONE],
                         CONF_BASE_URL: connection_url,
                         CONF_SBC_STATUS_PATH: CONF_SBC_STATUS_PATH,
@@ -185,6 +193,8 @@ class Duet3dOptionsFlow(config_entries.OptionsFlow):
                 CONF_INTERVAL: user_input[CONF_INTERVAL],
                 CONF_BED: user_input[CONF_BED],
                 CONF_LIGHT: user_input[CONF_LIGHT],
+                CONF_LED_STRIP_INDEX: user_input.get(CONF_LED_STRIP_INDEX, 0),
+                CONF_LED_COUNT: user_input.get(CONF_LED_COUNT, 1),
                 CONF_STANDALONE: user_input[CONF_STANDALONE],
             }
             return self.finish_flow()
@@ -204,6 +214,14 @@ class Duet3dOptionsFlow(config_entries.OptionsFlow):
                     CONF_LIGHT,
                     default=config_data.get(CONF_LIGHT),
                 ): bool,
+                vol.Optional(
+                    CONF_LED_STRIP_INDEX,
+                    default=config_data.get(CONF_LED_STRIP_INDEX, 0),
+                ): int,
+                vol.Optional(
+                    CONF_LED_COUNT,
+                    default=config_data.get(CONF_LED_COUNT, 1),
+                ): int,
                 vol.Optional(
                     CONF_STANDALONE,
                     default=config_data.get(CONF_STANDALONE),

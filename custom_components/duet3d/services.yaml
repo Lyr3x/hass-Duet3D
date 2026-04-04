@@ -1,4 +1,4 @@
-send_gcode:
+send_code:
   name: Send GCodes to Duet
   description: Send any GCode to the Duet3D DSF API
   fields:

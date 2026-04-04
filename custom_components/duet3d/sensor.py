@@ -100,6 +100,7 @@ async def async_setup_entry(
     entities: list[SensorEntity] = [
         DuetPrintJobPercentageSensor(coordinator, "Progress", device_id),
         DuetTimeRemainingSensor(coordinator, "Time Remaining", device_id),
+        DuetSlicerTimeRemainingSensor(coordinator, "Slicer Time Remaining", device_id),
         DuetPrintDurationSensor(coordinator, "Time Elapsed", device_id),
         DuetPrintPositionSensor(coordinator, "Position (X,Y,Z)", device_id),
         DuetCurrentStateSensor(coordinator, "Current State", device_id),
@@ -249,6 +250,36 @@ class DuetTimeRemainingSensor(DuetPrintSensorBase):
         )
         if print_file_time_left is not None:
             return round(print_file_time_left / 60.0, 2)
+        else:
+            return 0
+
+
+class DuetSlicerTimeRemainingSensor(DuetPrintSensorBase):
+    """Representation of slicer-estimated time remaining sensor."""
+
+    _attr_native_unit_of_measurement = "min"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_icon = "mdi:clock-end"
+
+    def __init__(
+        self, coordinator: DuetDataUpdateCoordinator, sensor_name: str, device_id: str
+    ) -> None:
+        """Initialize a new Duet3D sensor."""
+        super().__init__(
+            coordinator,
+            sensor_name,
+            f"{sensor_name}-{device_id}",
+        )
+
+    @property
+    def native_value(self):
+        """Return sensor state."""
+        slicer_time_json_path = SENSOR_TYPES["Slicer Time Remaining"]["json_path"]
+        slicer_time_left = self.coordinator.get_sensor_state(
+            slicer_time_json_path, self.sensor_name
+        )
+        if slicer_time_left is not None:
+            return round(slicer_time_left / 60.0, 2)
         else:
             return 0
 
